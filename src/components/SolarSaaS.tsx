@@ -1,26 +1,22 @@
-import React, { useState } from 'react';
-
-
+import { useState } from 'react';
 
 import { 
 
   LayoutGrid, Users, Box, Layers, Plus, 
 
-  TrendingUp, AlertTriangle, 
+  AlertTriangle, 
 
-  Search, Filter, Download, MoreHorizontal, 
+  Filter, Download, MoreHorizontal, 
 
-  ArrowRight, ChevronRight, Calendar, 
+  ChevronRight, 
 
   Zap, Battery, Settings,
 
   ChevronLeft, FileText, Send, Check, RefreshCw,
 
-  Home, Plug, X, Loader2, AlertCircle, 
+  Home, Plug, Loader2, AlertCircle, 
 
-  Euro, PieChart, Hammer, Clock, CheckCircle2,
-
-  Package, ShoppingCart, Minus, Truck
+  Package
 
 } from 'lucide-react';
 
