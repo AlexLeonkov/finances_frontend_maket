@@ -3,9 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { 
 
-  LayoutGrid, Users, Box, Layers, Plus, 
+  LayoutGrid, Users, Layers, Plus, 
 
-  AlertTriangle, 
+
 
   Filter, Download, MoreHorizontal, 
 
