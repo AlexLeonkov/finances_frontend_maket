@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import { 
 
@@ -52,51 +52,7 @@ const TEAMS = [
 
 // --- 6 MONTHS MOCK DATA ---
 
-// 1. CHART DATA (May - Oct)
-
-const SIX_MONTH_TREND = [
-
-  { name: 'Mai', AC01: 32000, AC02: 28000, AC03: 15000, AC04: 12000 },
-
-  { name: 'Jun', AC01: 38000, AC02: 35000, AC03: 22000, AC04: 18000 },
-
-  { name: 'Jul', AC01: 45000, AC02: 32000, AC03: 38000, AC04: 25000 },
-
-  { name: 'Aug', AC01: 42000, AC02: 48000, AC03: 41000, AC04: 38000 },
-
-  { name: 'Sep', AC01: 55000, AC02: 45000, AC03: 35000, AC04: 42000 },
-
-  { name: 'Okt', AC01: 62000, AC02: 52000, AC03: 48000, AC04: 51000 },
-
-];
-
-// 2. OPERATIONS / PROJECTS LIST (Rich History)
-
-const MOCK_PROJECTS = [
-
-  { id: 124, name: 'Schmidt Villa (12kWp)', client: 'Enpal GmbH', date: '2023-10-25', team: 'AC01', type: 'PV Complete', revenue: 4200, profit: 1450, margin: 34.5, status: 'paid' },
-
-  { id: 123, name: 'Weber Garage', client: 'Private', date: '2023-10-24', team: 'AC02', type: 'Wallbox', revenue: 850, profit: 320, margin: 37.6, status: 'paid' },
-
-  { id: 122, name: 'Lange Speicher Upgrade', client: '1KOMMA5°', date: '2023-10-23', team: 'AC03', type: 'Speicher', revenue: 2100, profit: -150, margin: -7.1, status: 'overdue' }, // Problem
-
-  { id: 121, name: 'Müller Retrofit', client: 'Enpal GmbH', date: '2023-10-22', team: 'AC04', type: 'Retrofit', revenue: 3200, profit: 800, margin: 25.0, status: 'pending' },
-
-  { id: 120, name: 'Klein Dach', client: 'SolarDirekt', date: '2023-10-21', team: 'AC01', type: 'PV Complete', revenue: 5100, profit: 1500, margin: 29.4, status: 'paid' },
-
-  { id: 119, name: 'Bauer Hof (Gen2)', client: 'Enpal GmbH', date: '2023-10-20', team: 'AC02', type: 'Gen1/Gen2', revenue: 1800, profit: 600, margin: 33.3, status: 'paid' },
-
-  { id: 118, name: 'Fischer EFH', client: 'Private', date: '2023-10-19', team: 'AC03', type: 'PV Complete', revenue: 6500, profit: 2200, margin: 33.8, status: 'pending' },
-
-  { id: 117, name: 'Wagner Wallbox', client: 'Private', date: '2023-10-18', team: 'AC04', type: 'Wallbox', revenue: 750, profit: 250, margin: 33.3, status: 'paid' },
-
-  { id: 116, name: 'Richter AC Montage', client: 'EnergieKonzpt', date: '2023-10-17', team: 'AC01', type: 'PV AC-Only', revenue: 2400, profit: 900, margin: 37.5, status: 'paid' },
-
-  { id: 115, name: 'Wolf Speicher', client: '1KOMMA5°', date: '2023-10-16', team: 'AC02', type: 'Speicher', revenue: 1900, profit: 400, margin: 21.0, status: 'paid' },
-
-  { id: 114, name: 'Neumann Notstrom', client: 'Enpal GmbH', date: '2023-10-15', team: 'AC03', type: 'Retrofit', revenue: 1500, profit: 100, margin: 6.6, status: 'pending' }, // Low margin
-
-];
+// Mock data removed - now using real backend data
 
 // 3. WAREHOUSE (Realistic Cable & Components)
 
@@ -151,6 +107,22 @@ const JOB_TEMPLATES = [
   { id: 'service', name: 'Wartung / Service', price: 250, icon: Settings, desc: 'Выезд сервисной бригады' },
 
 ];
+
+// --- TYPES ---
+
+interface Operation {
+  id: number;
+  invoiceNumber: string;
+  team: string | null;
+  members: string;
+  date: string;
+  revenue: number;
+  materialCost: number;
+  fuelCost: number;
+  isPaid: boolean;
+  profit: number;
+  createdAt: string;
+}
 
 // --- UTILS ---
 
@@ -246,25 +218,324 @@ const TypeTag = ({ type }: { type: string }) => {
 
 const Dashboard = () => {
 
-  // Aggregate mock data for KPIs
+  const [operations, setOperations] = useState<Operation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null); // Format: "2025-12" or null for all
+
+  useEffect(() => {
+    const fetchOperations = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        let url = '/api/operations';
+        let response: Response;
+        
+        try {
+          response = await fetch(url);
+        } catch (proxyError) {
+          console.warn('Proxy failed, trying direct connection:', proxyError);
+          url = 'http://localhost:3000/operations';
+          response = await fetch(url, {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+        }
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setOperations(data);
+        setError(null);
+      } catch (err) {
+        const errorMessage = err instanceof Error 
+          ? err.message 
+          : 'Failed to load operations';
+        
+        let userMessage = 'Не удалось загрузить данные';
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+          userMessage = 'Не удалось подключиться к серверу. Убедитесь, что backend запущен на http://localhost:3000';
+        } else if (errorMessage.includes('HTTP error')) {
+          userMessage = `Ошибка сервера: ${errorMessage}`;
+        }
+        
+        setError(userMessage);
+        console.error('Error fetching operations:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOperations();
+  }, []);
+
+  // Filter operations by selected month
+  const getFilteredOperations = () => {
+    if (!selectedMonth) return operations;
+    
+    return operations.filter(op => {
+      const date = new Date(op.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      return monthKey === selectedMonth;
+    });
+  };
+
+  // Get available months from data
+  const getAvailableMonths = () => {
+    const monthsSet = new Set<string>();
+    operations.forEach(op => {
+      const date = new Date(op.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthsSet.add(monthKey);
+    });
+    
+    const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    
+    return Array.from(monthsSet)
+      .sort()
+      .reverse()
+      .map(monthKey => {
+        const [year, month] = monthKey.split('-');
+        const monthIndex = parseInt(month) - 1;
+        return {
+          key: monthKey,
+          label: `${monthNames[monthIndex]} ${year}`,
+        };
+      });
+  };
+
+  // Calculate team performance
+  const calculateTeamPerformance = () => {
+    const filteredOps = getFilteredOperations();
+    const teamStats: { [key: string]: { revenue: number; profit: number; count: number; margin: number } } = {};
+    
+    filteredOps.forEach(op => {
+      const teamKey = op.team || 'Без команды';
+      
+      if (!teamStats[teamKey]) {
+        teamStats[teamKey] = { revenue: 0, profit: 0, count: 0, margin: 0 };
+      }
+      
+      teamStats[teamKey].revenue += op.revenue;
+      teamStats[teamKey].profit += op.profit;
+      teamStats[teamKey].count += 1;
+    });
+    
+    // Calculate margins
+    Object.keys(teamStats).forEach(team => {
+      const stats = teamStats[team];
+      stats.margin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
+    });
+    
+    return Object.entries(teamStats)
+      .map(([team, stats]) => ({
+        team,
+        ...stats,
+        color: COLORS[team as keyof typeof COLORS] || '#94A3B8',
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+  };
+
+  // Calculate KPIs from real data
+  const calculateKPIs = () => {
+    const filteredOps = getFilteredOperations();
+    
+    if (filteredOps.length === 0) {
+      return {
+        totalRevenue: 0,
+        totalProfit: 0,
+        outstandingDebt: 0,
+        totalOperations: 0,
+        averageMargin: 0,
+        unpaidCount: 0,
+        unprofitableCount: 0,
+        unprofitableProjects: [] as Operation[],
+      };
+    }
+
+    const totalRevenue = filteredOps.reduce((sum, op) => sum + op.revenue, 0);
+    const totalProfit = filteredOps.reduce((sum, op) => sum + op.profit, 0);
+    const outstandingDebt = filteredOps
+      .filter(op => !op.isPaid)
+      .reduce((sum, op) => sum + op.revenue, 0);
+    const unpaidCount = filteredOps.filter(op => !op.isPaid).length;
+    const averageMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    
+    const unprofitableProjects = filteredOps.filter(op => op.profit < 0);
+    const unprofitableCount = unprofitableProjects.length;
+
+    return {
+      totalRevenue,
+      totalProfit,
+      outstandingDebt,
+      totalOperations: filteredOps.length,
+      averageMargin,
+      unpaidCount,
+      unprofitableCount,
+      unprofitableProjects,
+    };
+  };
+
+  // Calculate monthly revenue for chart
+  const calculateMonthlyData = () => {
+    const filteredOps = getFilteredOperations();
+    const monthlyData: { [key: string]: { revenue: number; profit: number } } = {};
+    
+    filteredOps.forEach(op => {
+      const date = new Date(op.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { revenue: 0, profit: 0 };
+      }
+      
+      monthlyData[monthKey].revenue += op.revenue;
+      monthlyData[monthKey].profit += op.profit;
+    });
+
+    // Get last 6 months or selected month
+    const months = selectedMonth 
+      ? [selectedMonth]
+      : Object.keys(monthlyData).sort().slice(-6);
+    const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    
+    return months.map(monthKey => {
+      const [, month] = monthKey.split('-');
+      const monthIndex = parseInt(month) - 1;
+      return {
+        name: monthNames[monthIndex],
+        revenue: monthlyData[monthKey]?.revenue || 0,
+        profit: monthlyData[monthKey]?.profit || 0,
+      };
+    });
+  };
+
+  // Get top 3 most profitable projects
+  const getTopProjects = () => {
+    const filteredOps = getFilteredOperations();
+    return filteredOps
+      .filter(op => op.profit > 0)
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 3)
+      .map(op => ({
+        name: op.invoiceNumber,
+        margin: op.revenue > 0 ? ((op.profit / op.revenue) * 100).toFixed(1) : '0',
+        profit: op.profit,
+        team: op.team || op.members,
+      }));
+  };
+
+  // Generate sparkline data from monthly trends
+  const generateSparklineData = (values: number[]) => {
+    if (values.length === 0) return [{val: 0}];
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = max - min || 1;
+    return values.map(val => ({ val: ((val - min) / range) * 100 }));
+  };
+
+  const kpis = calculateKPIs();
+  const monthlyData = calculateMonthlyData();
+  const topProjects = getTopProjects();
+  const teamPerformance = calculateTeamPerformance();
+  const availableMonths = getAvailableMonths();
+
+  // Calculate trends (comparing last 2 months if available)
+  const revenueTrendNum = monthlyData.length >= 2 
+    ? ((monthlyData[monthlyData.length - 1].revenue - monthlyData[monthlyData.length - 2].revenue) / monthlyData[monthlyData.length - 2].revenue * 100)
+    : 0;
+  const revenueTrend = revenueTrendNum.toFixed(0);
+  
+  const profitTrendNum = monthlyData.length >= 2
+    ? ((monthlyData[monthlyData.length - 1].profit - monthlyData[monthlyData.length - 2].profit) / Math.abs(monthlyData[monthlyData.length - 2].profit) * 100)
+    : 0;
+  const profitTrend = profitTrendNum.toFixed(0);
+
+  const revenueChartData = generateSparklineData(monthlyData.map(m => m.revenue));
+  const profitChartData = generateSparklineData(monthlyData.map(m => m.profit));
+  const debtChartData = generateSparklineData([kpis.outstandingDebt]);
+  const operationsChartData = generateSparklineData([kpis.totalOperations]);
 
   const kpiData = [
 
-    { label: 'Выручка (6 мес)', val: 842500, trend: '+15%', sub: 'Стабильный рост', chart: [{val:60}, {val:65}, {val:75}, {val:72}, {val:85}, {val:90}], color: '#4F46E5' },
+    { label: 'Выручка (Всего)', val: kpis.totalRevenue, trend: `${revenueTrendNum >= 0 ? '+' : ''}${revenueTrend}%`, sub: `${monthlyData.length} месяцев данных`, chart: revenueChartData, color: '#4F46E5' },
 
-    { label: 'Чистая Прибыль', val: 215400, trend: '+8%', sub: 'Маржа 25.5%', chart: [{val:20}, {val:22}, {val:25}, {val:24}, {val:28}, {val:30}], color: '#10B981' },
+    { label: 'Чистая Прибыль', val: kpis.totalProfit, trend: `${profitTrendNum >= 0 ? '+' : ''}${profitTrend}%`, sub: `Маржа ${kpis.averageMargin.toFixed(1)}%`, chart: profitChartData, color: '#10B981' },
 
-    { label: 'Дебиторка (Долг)', val: 28400, trend: '+2%', sub: '5 клиентов', chart: [{val:10}, {val:12}, {val:15}, {val:20}, {val:18}, {val:28}], color: '#F59E0B' },
+    { label: 'Дебиторка (Долг)', val: kpis.outstandingDebt, trend: `${kpis.unpaidCount}`, sub: `${kpis.unpaidCount} неоплаченных`, chart: debtChartData, color: '#F59E0B' },
 
-    { label: 'Всего объектов', val: 284, trend: '+12', sub: '47 за Октябрь', chart: [{val:30}, {val:35}, {val:40}, {val:42}, {val:45}, {val:47}], color: '#6366F1' },
+    { label: 'Всего объектов', val: kpis.totalOperations, trend: `+${kpis.totalOperations}`, sub: `${monthlyData.length > 0 ? `Последний: ${monthlyData[monthlyData.length - 1].name}` : 'Нет данных'}`, chart: operationsChartData, color: '#6366F1' },
 
   ];
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm animate-pulse">
+              <div className="h-4 bg-slate-200 rounded w-24 mb-4"></div>
+              <div className="h-8 bg-slate-200 rounded w-32 mb-2"></div>
+              <div className="h-4 bg-slate-200 rounded w-20"></div>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-center p-12">
+          <Loader2 className="animate-spin text-indigo-600" size={32} />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 text-center">
+          <AlertCircle className="text-rose-600 mx-auto mb-4" size={32} />
+          <h3 className="font-bold text-rose-800 mb-2">Ошибка загрузки данных</h3>
+          <p className="text-rose-600 text-sm">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
 
     <div className="space-y-6 animate-in fade-in duration-500">
 
-      
+      {/* FILTER BAR */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-bold text-slate-600">Период:</span>
+          <select
+            value={selectedMonth || ''}
+            onChange={(e) => setSelectedMonth(e.target.value || null)}
+            className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="">Все периоды</option>
+            {availableMonths.map(month => (
+              <option key={month.key} value={month.key}>{month.label}</option>
+            ))}
+          </select>
+          {selectedMonth && (
+            <button
+              onClick={() => setSelectedMonth(null)}
+              className="text-xs text-slate-500 hover:text-slate-700 underline"
+            >
+              Сбросить
+            </button>
+          )}
+        </div>
+        {selectedMonth && (
+          <div className="text-sm text-slate-500">
+            Показано: {availableMonths.find(m => m.key === selectedMonth)?.label}
+          </div>
+        )}
+      </div>
 
       {/* KPI GRID */}
 
@@ -282,7 +553,7 @@ const Dashboard = () => {
 
               <div className="flex items-center gap-2 mt-2">
 
-                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${kpi.trend.startsWith('+') ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${kpi.trend.startsWith('+') || !kpi.trend.includes('-') ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
 
                   {kpi.trend}
 
@@ -304,29 +575,105 @@ const Dashboard = () => {
 
       {/* WARNINGS BLOCK */}
 
-      <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      {kpis.unprofitableCount > 0 && (
+        <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
 
-        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
 
-            <div className="bg-white p-2 rounded-full text-rose-600 shadow-sm"><AlertTriangle size={20}/></div>
+              <div className="bg-white p-2 rounded-full text-rose-600 shadow-sm"><AlertTriangle size={20}/></div>
 
-            <div>
+              <div>
 
-                <h4 className="font-bold text-rose-800 text-sm">Внимание: 2 убыточных проекта</h4>
+                  <h4 className="font-bold text-rose-800 text-sm">Внимание: {kpis.unprofitableCount} {kpis.unprofitableCount === 1 ? 'убыточный проект' : kpis.unprofitableCount < 5 ? 'убыточных проекта' : 'убыточных проектов'}</h4>
 
-                <p className="text-xs text-rose-600">"Lange Speicher" (-€150) и "Neumann Retrofit" (Маржа 6%)</p>
+                  <p className="text-xs text-rose-600">
+                    {kpis.unprofitableProjects.slice(0, 2).map((op, idx) => (
+                      <span key={op.id}>
+                        {op.invoiceNumber} ({formatEUR(op.profit)}){idx < Math.min(2, kpis.unprofitableProjects.length) - 1 ? ', ' : ''}
+                      </span>
+                    ))}
+                    {kpis.unprofitableProjects.length > 2 && ` и еще ${kpis.unprofitableProjects.length - 2}`}
+                  </p>
 
-            </div>
+              </div>
+
+          </div>
+
+          <div className="flex gap-2">
+
+              <button className="text-xs font-bold bg-white text-rose-700 px-3 py-2 rounded-lg border border-rose-200 hover:bg-rose-100">Подробнее</button>
+
+          </div>
 
         </div>
+      )}
 
-        <div className="flex gap-2">
+      {/* TEAM PERFORMANCE SECTION */}
+      {teamPerformance.length > 0 && (
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 className="font-bold text-slate-800 mb-6">Аналитика по командам</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {teamPerformance.map((team, idx) => (
+              <div key={idx} className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-3 h-3 rounded-full" style={{backgroundColor: team.color}}></span>
+                  <h4 className="font-bold text-slate-800">{team.team}</h4>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Выручка:</span>
+                    <span className="font-bold text-slate-800">{formatEUR(team.revenue)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Прибыль:</span>
+                    <span className={`font-bold ${team.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {formatEUR(team.profit)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Маржа:</span>
+                    <span className={`font-bold ${team.margin > 20 ? 'text-emerald-600' : team.margin > 0 ? 'text-amber-600' : 'text-rose-600'}`}>
+                      {team.margin.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm pt-2 border-t border-slate-100">
+                    <span className="text-slate-500">Проектов:</span>
+                    <span className="font-bold text-slate-800">{team.count}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
-            <button className="text-xs font-bold bg-white text-rose-700 px-3 py-2 rounded-lg border border-rose-200 hover:bg-rose-100">Подробнее</button>
-
+          {/* Team Comparison Chart */}
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={teamPerformance}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0"/>
+                <XAxis 
+                  dataKey="team" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fontSize:12, fill:'#94A3B8'}} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fontSize:12, fill:'#94A3B8'}} 
+                  tickFormatter={(val) => `€${(val/1000).toFixed(0)}k`}
+                />
+                <Tooltip 
+                  contentStyle={{borderRadius:'8px', border:'none', boxShadow:'0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                  formatter={(value: number) => formatEUR(value)}
+                />
+                <Bar dataKey="revenue" fill="#4F46E5" radius={[4,4,0,0]} name="Выручка" />
+                <Bar dataKey="profit" fill="#10B981" radius={[4,4,0,0]} name="Прибыль" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -340,9 +687,13 @@ const Dashboard = () => {
 
                 <div>
 
-                    <h3 className="font-bold text-slate-800">Рост выручки (Полгода)</h3>
+                    <h3 className="font-bold text-slate-800">
+                      {selectedMonth ? 'Выручка и прибыль' : 'Рост выручки (Полгода)'}
+                    </h3>
 
-                    <p className="text-sm text-slate-400">Сравнение эффективности команд</p>
+                    <p className="text-sm text-slate-400">
+                      {selectedMonth ? 'Данные за выбранный период' : 'Сравнение эффективности команд'}
+                    </p>
 
                 </div>
 
@@ -358,29 +709,34 @@ const Dashboard = () => {
 
              <div className="h-72">
 
-                <ResponsiveContainer width="100%" height="100%">
+                {monthlyData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
 
-                    <LineChart data={SIX_MONTH_TREND}>
+                      <LineChart data={monthlyData}>
 
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0"/>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0"/>
 
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize:12, fill:'#94A3B8'}} dy={10} />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize:12, fill:'#94A3B8'}} dy={10} />
 
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize:12, fill:'#94A3B8'}} tickFormatter={(val) => `€${val/1000}k`}/>
+                          <YAxis axisLine={false} tickLine={false} tick={{fontSize:12, fill:'#94A3B8'}} tickFormatter={(val) => `€${(val/1000).toFixed(0)}k`}/>
 
-                        <Tooltip contentStyle={{borderRadius:'8px', border:'none', boxShadow:'0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                          <Tooltip 
+                            contentStyle={{borderRadius:'8px', border:'none', boxShadow:'0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                            formatter={(value: number) => formatEUR(value)}
+                          />
 
-                        <Line type="monotone" dataKey="AC01" stroke={COLORS.AC01} strokeWidth={3} dot={{r:4}} />
+                          <Line type="monotone" dataKey="revenue" stroke="#4F46E5" strokeWidth={3} dot={{r:4}} name="Выручка" />
 
-                        <Line type="monotone" dataKey="AC02" stroke={COLORS.AC02} strokeWidth={3} dot={{r:4}} />
+                          <Line type="monotone" dataKey="profit" stroke="#10B981" strokeWidth={3} dot={{r:4}} name="Прибыль" />
 
-                        <Line type="monotone" dataKey="AC03" stroke={COLORS.AC03} strokeWidth={3} dot={{r:4}} />
+                      </LineChart>
 
-                        <Line type="monotone" dataKey="AC04" stroke={COLORS.AC04} strokeWidth={3} dot={{r:4}} />
-
-                    </LineChart>
-
-                </ResponsiveContainer>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-400">
+                    <p>Нет данных для отображения</p>
+                  </div>
+                )}
 
              </div>
 
@@ -390,53 +746,53 @@ const Dashboard = () => {
 
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
 
-              <h3 className="font-bold text-slate-800 mb-4">ТОП-3 Проекта (Октябрь)</h3>
+              <h3 className="font-bold text-slate-800 mb-4">ТОП-3 Проекта</h3>
 
               <div className="flex-1 space-y-4">
 
-                  {[
+                  {topProjects.length > 0 ? (
+                    topProjects.map((p, i) => (
 
-                      { name: 'Schmidt Villa 12kWp', margin: 34.5, profit: 1450, team: 'AC01' },
+                        <div key={i} className="flex justify-between items-center pb-3 border-b border-slate-50 last:border-0">
 
-                      { name: 'Fischer EFH PV', margin: 33.8, profit: 2200, team: 'AC03' },
+                            <div>
 
-                      { name: 'Weber Wallbox', margin: 37.6, profit: 320, team: 'AC02' },
+                                <p className="font-bold text-sm text-slate-700 truncate w-32 md:w-auto">{p.name}</p>
 
-                  ].map((p, i) => (
+                                <div className="flex items-center gap-2">
 
-                      <div key={i} className="flex justify-between items-center pb-3 border-b border-slate-50 last:border-0">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded">{p.team}</span>
 
-                          <div>
+                                  <p className="text-xs text-slate-400">Прибыль: {formatEUR(p.profit)}</p>
 
-                              <p className="font-bold text-sm text-slate-700 truncate w-32 md:w-auto">{p.name}</p>
+                                </div>
 
-                              <div className="flex items-center gap-2">
+                            </div>
 
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded">{p.team}</span>
+                            <div className="text-right">
 
-                                <p className="text-xs text-slate-400">Прибыль: €{p.profit}</p>
+                                <span className="text-sm font-bold text-emerald-600">{p.margin}%</span>
 
-                              </div>
+                            </div>
 
-                          </div>
+                        </div>
 
-                          <div className="text-right">
-
-                              <span className="text-sm font-bold text-emerald-600">{p.margin}%</span>
-
-                          </div>
-
-                      </div>
-
-                  ))}
+                    ))
+                  ) : (
+                    <div className="text-center text-slate-400 py-8">
+                      <p className="text-sm">Нет прибыльных проектов</p>
+                    </div>
+                  )}
 
               </div>
 
-              <button className="mt-auto w-full py-3 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg border border-dashed border-slate-300 transition-colors">
+              {kpis.unprofitableCount > 0 && (
+                <button className="mt-auto w-full py-3 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg border border-dashed border-rose-300 transition-colors">
 
-                  Показать убыточные проекты
+                    Показать убыточные проекты ({kpis.unprofitableCount})
 
-              </button>
+                </button>
+              )}
 
           </div>
 
@@ -456,67 +812,283 @@ const Dashboard = () => {
 
 const Teams = () => {
 
+    const [operations, setOperations] = useState<Operation[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+    const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
+
+    useEffect(() => {
+        const fetchOperations = async () => {
+          try {
+            setLoading(true);
+            setError(null);
+            
+            let url = '/api/operations';
+            let response: Response;
+            
+            try {
+              response = await fetch(url);
+            } catch (proxyError) {
+              console.warn('Proxy failed, trying direct connection:', proxyError);
+              url = 'http://localhost:3000/operations';
+              response = await fetch(url, {
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              });
+            }
+            
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            setOperations(data);
+            setError(null);
+          } catch (err) {
+            const errorMessage = err instanceof Error 
+              ? err.message 
+              : 'Failed to load operations';
+            
+            let userMessage = 'Не удалось загрузить данные';
+            if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+              userMessage = 'Не удалось подключиться к серверу. Убедитесь, что backend запущен на http://localhost:3000';
+            } else if (errorMessage.includes('HTTP error')) {
+              userMessage = `Ошибка сервера: ${errorMessage}`;
+            }
+            
+            setError(userMessage);
+            console.error('Error fetching operations:', err);
+          } finally {
+            setLoading(false);
+          }
+        };
+    
+        fetchOperations();
+    }, []);
+
+    const filteredOperations = operations.filter(op => {
+        const opDate = new Date(op.date).getTime();
+        const fromOk = dateRange.from ? opDate >= new Date(dateRange.from).getTime() : true;
+        const toOk = dateRange.to ? opDate <= new Date(dateRange.to).getTime() : true;
+        return fromOk && toOk;
+    });
+
+    const calculateTeamPerformance = () => {
+        const teamStats: { [key: string]: { revenue: number; profit: number; count: number; margin: number } } = {};
+        
+        filteredOperations.forEach(op => {
+          const teamKey = op.team || 'Без команды';
+          
+          if (!teamStats[teamKey]) {
+            teamStats[teamKey] = { revenue: 0, profit: 0, count: 0, margin: 0 };
+          }
+          
+          teamStats[teamKey].revenue += op.revenue;
+          teamStats[teamKey].profit += op.profit;
+          teamStats[teamKey].count += 1;
+        });
+        
+        Object.keys(teamStats).forEach(team => {
+          const stats = teamStats[team];
+          stats.margin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
+        });
+        
+        return Object.entries(teamStats)
+          .map(([team, stats]) => ({
+            team,
+            ...stats,
+            color: COLORS[team as keyof typeof COLORS] || '#94A3B8',
+          }))
+          .sort((a, b) => b.revenue - a.revenue);
+    };
+
+    const getTeamHistory = (teamId: string) => {
+        const teamOps = filteredOperations.filter(op => op.team === teamId);
+        const monthly: { [key: string]: { revenue: number; profit: number } } = {};
+      
+        teamOps.forEach(op => {
+          const date = new Date(op.date);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          if (!monthly[monthKey]) monthly[monthKey] = { revenue: 0, profit: 0 };
+          monthly[monthKey].revenue += op.revenue;
+          monthly[monthKey].profit += op.profit;
+        });
+      
+        return Object.keys(monthly)
+          .sort()
+          .slice(-6)
+          .map(key => {
+            const [, month] = key.split('-');
+            const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+            const monthIndex = parseInt(month) - 1;
+            return {
+              name: monthNames[monthIndex],
+              revenue: monthly[key].revenue,
+              profit: monthly[key].profit,
+            };
+          });
+    };
+
+    const teamPerformance = calculateTeamPerformance();
+    const selectedStats = selectedTeam ? teamPerformance.find(t => t.team === selectedTeam) : null;
+    const selectedTeamMeta = selectedTeam ? TEAMS.find(t => t.id === selectedTeam) : null;
+    const selectedTeamHistory = selectedTeam ? getTeamHistory(selectedTeam) : [];
+    const selectedTeamOperations = selectedTeam ? filteredOperations.filter(op => op.team === selectedTeam).slice(0, 5) : [];
+
+    if (loading) {
+        return (
+            <div className="space-y-4">
+                {[1,2,3].map(key => (
+                    <div key={key} className="bg-white h-24 rounded-xl border border-slate-200 animate-pulse" />
+                ))}
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-rose-700">
+                {error}
+            </div>
+        );
+    }
 
     if (!selectedTeam) return (
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
+        <div className="space-y-6 animate-in fade-in">
 
-            {TEAMS.map(team => (
-
-                <div key={team.id} onClick={() => setSelectedTeam(team.id)} className="group bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-indigo-200 transition-all cursor-pointer relative overflow-hidden">
-
-                    <div className={`absolute top-0 left-0 w-1 h-full`} style={{backgroundColor: team.color}}></div>
-
-                    <div className="flex justify-between items-start mb-6">
-
-                        <div className="flex items-center gap-4">
-
-                            <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md" style={{backgroundColor: team.color}}>
-
-                                {team.avatar}
-
-                            </div>
-
-                            <div>
-
-                                <h3 className="text-xl font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{team.name}</h3>
-
-                                <p className="text-sm text-slate-500">{team.members}</p>
-
-                            </div>
-
-                        </div>
-
-                        <ChevronRight className="text-slate-300 group-hover:text-indigo-500" />
-
-                    </div>
-
-                    
-
-                    <div className="grid grid-cols-2 gap-4">
-
-                        <div className="bg-slate-50 p-3 rounded-lg">
-
-                            <p className="text-[10px] text-slate-400 uppercase font-bold">Выручка (6 мес)</p>
-
-                            <p className="text-lg font-bold text-slate-800">{team.stats.rev}</p>
-
-                        </div>
-
-                        <div className="bg-slate-50 p-3 rounded-lg">
-
-                            <p className="text-[10px] text-slate-400 uppercase font-bold">Скорость</p>
-
-                            <p className={`text-lg font-bold ${team.stats.speed === 'High' ? 'text-emerald-600' : 'text-amber-600'}`}>{team.stats.speed}</p>
-
-                        </div>
-
-                    </div>
-
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                    <span className="font-bold text-slate-700">Период:</span>
+                    <input
+                        type="date"
+                        value={dateRange.from}
+                        onChange={(e) => setDateRange(r => ({ ...r, from: e.target.value }))}
+                        className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    />
+                    <span className="text-slate-400">—</span>
+                    <input
+                        type="date"
+                        value={dateRange.to}
+                        onChange={(e) => setDateRange(r => ({ ...r, to: e.target.value }))}
+                        className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    />
                 </div>
+                {(dateRange.from || dateRange.to) && (
+                    <button
+                        onClick={() => setDateRange({ from: '', to: '' })}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                    >
+                        Сбросить даты
+                    </button>
+                )}
+            </div>
 
-            ))}
+            {teamPerformance.length > 0 && (
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <h3 className="font-bold text-slate-800 mb-6">Аналитика по командам</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        {teamPerformance.map((team, idx) => (
+                          <div key={idx} className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="w-3 h-3 rounded-full" style={{backgroundColor: team.color}}></span>
+                              <h4 className="font-bold text-slate-800">{team.team}</h4>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">Выручка:</span>
+                                <span className="font-bold text-slate-800">{formatEUR(team.revenue)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">Прибыль:</span>
+                                <span className={`font-bold ${team.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                  {formatEUR(team.profit)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">Маржа:</span>
+                                <span className={`font-bold ${team.margin > 20 ? 'text-emerald-600' : team.margin > 0 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                  {team.margin.toFixed(1)}%
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm pt-2 border-t border-slate-100">
+                                <span className="text-slate-500">Проектов:</span>
+                                <span className="font-bold text-slate-800">{team.count}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={teamPerformance}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0"/>
+                            <XAxis 
+                              dataKey="team" 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{fontSize:12, fill:'#94A3B8'}} 
+                            />
+                            <YAxis 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{fontSize:12, fill:'#94A3B8'}} 
+                              tickFormatter={(val) => `€${(val/1000).toFixed(0)}k`}
+                            />
+                            <Tooltip 
+                              contentStyle={{borderRadius:'8px', border:'none', boxShadow:'0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                              formatter={(value: number) => formatEUR(value)}
+                            />
+                            <Bar dataKey="revenue" fill="#4F46E5" radius={[4,4,0,0]} name="Выручка" />
+                            <Bar dataKey="profit" fill="#10B981" radius={[4,4,0,0]} name="Прибыль" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {TEAMS.map(team => {
+                    const stats = teamPerformance.find(t => t.team === team.id);
+                    return (
+                        <div key={team.id} onClick={() => setSelectedTeam(team.id)} className="group bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-indigo-200 transition-all cursor-pointer relative overflow-hidden">
+                            <div className={`absolute top-0 left-0 w-1 h-full`} style={{backgroundColor: team.color}}></div>
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md" style={{backgroundColor: team.color}}>
+                                        {team.avatar}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{team.name}</h3>
+                                        <p className="text-sm text-slate-500">{team.members}</p>
+                                    </div>
+                                </div>
+                                <ChevronRight className="text-slate-300 group-hover:text-indigo-500" />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50 p-3 rounded-lg">
+                                    <p className="text-[10px] text-slate-400 uppercase font-bold">Выручка</p>
+                                    <p className="text-lg font-bold text-slate-800">{stats ? formatEUR(stats.revenue) : '—'}</p>
+                                </div>
+                                <div className="bg-slate-50 p-3 rounded-lg">
+                                    <p className="text-[10px] text-slate-400 uppercase font-bold">Маржа</p>
+                                    <p className={`text-lg font-bold ${stats ? (stats.margin > 20 ? 'text-emerald-600' : stats.margin > 0 ? 'text-amber-600' : 'text-rose-600') : 'text-slate-500'}`}>
+                                        {stats ? `${stats.margin.toFixed(1)}%` : '—'}
+                                    </p>
+                                </div>
+                            </div>
+
+                        </div>
+                    );
+                })}
+
+            </div>
 
         </div>
 
@@ -536,19 +1108,70 @@ const Teams = () => {
 
                 <div className="flex items-center gap-4">
 
-                    <div className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-md" style={{backgroundColor: TEAMS.find(t => t.id === selectedTeam)?.color}}>
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-md" style={{backgroundColor: selectedTeamMeta?.color}}>
 
-                        {TEAMS.find(t => t.id === selectedTeam)?.avatar}
+                        {selectedTeamMeta?.avatar}
 
                     </div>
 
                     <div>
 
-                        <h1 className="text-2xl font-bold text-slate-800">{TEAMS.find(t => t.id === selectedTeam)?.name}</h1>
+                        <h1 className="text-2xl font-bold text-slate-800">{selectedTeamMeta?.name}</h1>
 
-                        <p className="text-slate-500 text-sm flex items-center gap-2"><Users size={14}/> {TEAMS.find(t => t.id === selectedTeam)?.members}</p>
+                        <p className="text-slate-500 text-sm flex items-center gap-2"><Users size={14}/> {selectedTeamMeta?.members}</p>
 
                     </div>
+
+                </div>
+
+                {selectedStats && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full md:w-auto">
+                        <div className="bg-slate-50 rounded-lg p-3">
+                            <p className="text-[10px] text-slate-400 uppercase font-bold">Выручка</p>
+                            <p className="text-lg font-bold text-slate-800">{formatEUR(selectedStats.revenue)}</p>
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-3">
+                            <p className="text-[10px] text-slate-400 uppercase font-bold">Прибыль</p>
+                            <p className={`text-lg font-bold ${selectedStats.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatEUR(selectedStats.profit)}</p>
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-3">
+                            <p className="text-[10px] text-slate-400 uppercase font-bold">Маржа</p>
+                            <p className={`text-lg font-bold ${selectedStats.margin > 20 ? 'text-emerald-600' : selectedStats.margin > 0 ? 'text-amber-600' : 'text-rose-600'}`}>{selectedStats.margin.toFixed(1)}%</p>
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-3">
+                            <p className="text-[10px] text-slate-400 uppercase font-bold">Проектов</p>
+                            <p className="text-lg font-bold text-slate-800">{selectedStats.count}</p>
+                        </div>
+                    </div>
+                )}
+
+            </div>
+
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+
+                <h3 className="font-bold text-slate-800 mb-4">История эффективности (6 мес)</h3>
+
+                <div className="h-64">
+
+                    <ResponsiveContainer width="100%" height="100%">
+
+                        <BarChart data={selectedTeamHistory}>
+
+                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0"/>
+
+                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize:12}} />
+
+                             <YAxis axisLine={false} tickLine={false} tick={{fontSize:12}} tickFormatter={(val) => `€${(val/1000).toFixed(0)}k`} />
+
+                             <Tooltip cursor={{fill: '#F1F5F9'}} formatter={(value: number) => formatEUR(value)} />
+
+                             <Bar dataKey="revenue" fill={selectedTeamMeta?.color || '#4F46E5'} radius={[4,4,0,0]} name="Выручка" />
+
+                             <Bar dataKey="profit" fill="#10B981" radius={[4,4,0,0]} name="Прибыль" />
+
+                        </BarChart>
+
+                    </ResponsiveContainer>
 
                 </div>
 
@@ -556,31 +1179,26 @@ const Teams = () => {
 
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
 
-                <h3 className="font-bold text-slate-800 mb-4">История эффективности (Последние 30 дней)</h3>
+                <h3 className="font-bold text-slate-800 mb-4">Недавние операции</h3>
 
-                <div className="h-64">
-
-                    <ResponsiveContainer width="100%" height="100%">
-
-                        <BarChart data={[
-
-                            {d:'1-5', v:4200}, {d:'6-10', v:3500}, {d:'11-15', v:5100}, {d:'16-20', v:2400}, {d:'21-25', v:4800}, {d:'26-30', v:3900}
-
-                        ]}>
-
-                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0"/>
-
-                             <XAxis dataKey="d" axisLine={false} tickLine={false} tick={{fontSize:12}} />
-
-                             <Tooltip cursor={{fill: '#F1F5F9'}} />
-
-                             <Bar dataKey="v" fill={TEAMS.find(t => t.id === selectedTeam)?.color} radius={[4,4,0,0]} />
-
-                        </BarChart>
-
-                    </ResponsiveContainer>
-
-                </div>
+                {selectedTeamOperations.length === 0 ? (
+                    <p className="text-slate-500 text-sm">Нет операций для отображения.</p>
+                ) : (
+                    <div className="space-y-3">
+                        {selectedTeamOperations.map(op => (
+                            <div key={op.id} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
+                                <div>
+                                    <p className="font-bold text-slate-800">{op.invoiceNumber}</p>
+                                    <p className="text-xs text-slate-400">{op.date}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className={`font-bold ${op.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatEUR(op.profit)}</p>
+                                    <p className="text-xs text-slate-500">Маржа {(op.revenue > 0 ? (op.profit / op.revenue) * 100 : 0).toFixed(1)}%</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
             </div>
 
@@ -709,6 +1327,80 @@ const Warehouse = () => {
 // ============================================
 
 const Operations = () => {
+    const [operations, setOperations] = useState<Operation[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchOperations = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                
+                // Try proxy first, fallback to direct URL
+                let url = '/api/operations';
+                let response: Response;
+                
+                try {
+                    response = await fetch(url);
+                } catch (proxyError) {
+                    // If proxy fails, try direct connection
+                    console.warn('Proxy failed, trying direct connection:', proxyError);
+                    url = 'http://localhost:3000/operations';
+                    response = await fetch(url, {
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                setOperations(data);
+                setError(null);
+            } catch (err) {
+                const errorMessage = err instanceof Error 
+                    ? err.message 
+                    : 'Failed to load operations';
+                
+                // More user-friendly error messages
+                let userMessage = 'Не удалось загрузить операции';
+                if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+                    userMessage = 'Не удалось подключиться к серверу. Убедитесь, что backend запущен на http://localhost:3000';
+                } else if (errorMessage.includes('HTTP error')) {
+                    userMessage = `Ошибка сервера: ${errorMessage}`;
+                }
+                
+                setError(userMessage);
+                console.error('Error fetching operations:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchOperations();
+    }, []);
+
+    // Helper function to format date
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ru-RU', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    };
+
+    // Calculate margin percentage
+    const calculateMargin = (revenue: number, profit: number): number => {
+        if (revenue === 0) return 0;
+        return parseFloat(((profit / revenue) * 100).toFixed(1));
+    };
+
+    // Get team color or default
+    const getTeamColor = (team: string | null) => {
+        if (!team) return '#94A3B8'; // Default gray
+        return COLORS[team as keyof typeof COLORS] || '#94A3B8';
+    };
 
     return (
 
@@ -736,99 +1428,129 @@ const Operations = () => {
 
             </div>
 
-            <div className="overflow-x-auto">
+            {loading && (
+                <div className="p-12 text-center">
+                    <Loader2 className="animate-spin mx-auto mb-4 text-indigo-600" size={32} />
+                    <p className="text-slate-500">Загрузка операций...</p>
+                </div>
+            )}
 
-                <table className="w-full text-sm">
+            {error && (
+                <div className="p-6 text-center">
+                    <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 inline-block">
+                        <AlertCircle className="text-rose-600 mx-auto mb-2" size={24} />
+                        <p className="text-rose-700 font-medium">Ошибка загрузки</p>
+                        <p className="text-rose-600 text-sm mt-1">{error}</p>
+                    </div>
+                </div>
+            )}
 
-                    <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold">
+            {!loading && !error && (
+                <div className="overflow-x-auto">
 
-                        <tr>
+                    <table className="w-full text-sm">
 
-                            <th className="px-6 py-3 text-left">Статус</th>
+                        <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold">
 
-                            <th className="px-6 py-3 text-left">Проект / Дата</th>
+                            <tr>
 
-                            <th className="px-6 py-3 text-left">Команда</th>
+                                <th className="px-6 py-3 text-left">Статус</th>
 
-                            <th className="px-6 py-3 text-right">Выручка</th>
+                                <th className="px-6 py-3 text-left">Проект / Дата</th>
 
-                            <th className="px-6 py-3 text-right">Прибыль</th>
+                                <th className="px-6 py-3 text-left">Команда</th>
 
-                            <th className="px-6 py-3 text-right">Маржа</th>
+                                <th className="px-6 py-3 text-right">Выручка</th>
 
-                            <th className="px-6 py-3"></th>
+                                <th className="px-6 py-3 text-right">Прибыль</th>
 
-                        </tr>
+                                <th className="px-6 py-3 text-right">Маржа</th>
 
-                    </thead>
-
-                    <tbody className="divide-y divide-slate-100">
-
-                        {MOCK_PROJECTS.map(p => (
-
-                            <tr key={p.id} className="hover:bg-slate-50 transition-colors group">
-
-                                <td className="px-6 py-4"><StatusTag status={p.status} /></td>
-
-                                <td className="px-6 py-4">
-
-                                    <div className="font-bold text-slate-800">{p.name}</div>
-
-                                    <div className="flex items-center gap-2 mt-1">
-
-                                        <TypeTag type={p.type} />
-
-                                        <span className="text-xs text-slate-400">{p.date}</span>
-
-                                    </div>
-
-                                </td>
-
-                                <td className="px-6 py-4">
-
-                                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-
-                                        <span className="w-2 h-2 rounded-full" style={{backgroundColor: COLORS[p.team as keyof typeof COLORS]}}></span>
-
-                                        {p.team}
-
-                                    </span>
-
-                                </td>
-
-                                <td className="px-6 py-4 text-right font-medium tabular-nums">{formatEUR(p.revenue)}</td>
-
-                                <td className={`px-6 py-4 text-right font-bold tabular-nums ${p.profit > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-
-                                    {formatEUR(p.profit)}
-
-                                </td>
-
-                                <td className="px-6 py-4 text-right">
-
-                                    <span className={`text-xs font-bold px-2 py-1 rounded ${p.margin > 20 ? 'bg-emerald-50 text-emerald-700' : p.margin > 0 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
-
-                                        {p.margin}%
-
-                                    </span>
-
-                                </td>
-
-                                <td className="px-6 py-4 text-center">
-
-                                    <button className="text-slate-300 hover:text-slate-600"><MoreHorizontal size={16}/></button>
-
-                                </td>
+                                <th className="px-6 py-3"></th>
 
                             </tr>
 
-                        ))}
+                        </thead>
 
-                    </tbody>
+                        <tbody className="divide-y divide-slate-100">
 
-                </table>
+                            {operations.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                        Нет операций для отображения
+                                    </td>
+                                </tr>
+                            ) : (
+                                operations.map(op => {
+                                    const margin = calculateMargin(op.revenue, op.profit);
+                                    return (
+                                        <tr key={op.id} className="hover:bg-slate-50 transition-colors group">
 
-            </div>
+                                            <td className="px-6 py-4"><StatusTag status={op.isPaid ? 'paid' : 'pending'} /></td>
+
+                                            <td className="px-6 py-4">
+
+                                                <div className="font-bold text-slate-800">{op.invoiceNumber}</div>
+
+                                                <div className="flex items-center gap-2 mt-1">
+
+                                                    <span className="text-xs text-slate-400">{formatDate(op.date)}</span>
+
+                                                </div>
+
+                                            </td>
+
+                                            <td className="px-6 py-4">
+
+                                                {op.team ? (
+                                                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+
+                                                        <span className="w-2 h-2 rounded-full" style={{backgroundColor: getTeamColor(op.team)}}></span>
+
+                                                        {op.team}
+
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-slate-400">{op.members || '—'}</span>
+                                                )}
+
+                                            </td>
+
+                                            <td className="px-6 py-4 text-right font-medium tabular-nums">{formatEUR(op.revenue)}</td>
+
+                                            <td className={`px-6 py-4 text-right font-bold tabular-nums ${op.profit > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+
+                                                {formatEUR(op.profit)}
+
+                                            </td>
+
+                                            <td className="px-6 py-4 text-right">
+
+                                                <span className={`text-xs font-bold px-2 py-1 rounded ${margin > 20 ? 'bg-emerald-50 text-emerald-700' : margin > 0 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
+
+                                                    {margin}%
+
+                                                </span>
+
+                                            </td>
+
+                                            <td className="px-6 py-4 text-center">
+
+                                                <button className="text-slate-300 hover:text-slate-600"><MoreHorizontal size={16}/></button>
+
+                                            </td>
+
+                                        </tr>
+                                    );
+                                })
+                            )}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            )}
 
         </div>
 
