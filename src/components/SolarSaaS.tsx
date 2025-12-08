@@ -1331,7 +1331,7 @@ const Warehouse = () => {
 
 // ============================================
 
-const Operations = () => {
+const Operations = ({ refreshTrigger }: { refreshTrigger?: number }) => {
     const [operations, setOperations] = useState<Operation[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -1380,7 +1380,7 @@ const Operations = () => {
         };
 
         fetchOperations();
-    }, []);
+    }, [refreshTrigger]);
 
     // Helper function to format date
     const formatDate = (dateString: string) => {
@@ -1759,6 +1759,22 @@ export default function SolarSaaS() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Form state for new operation
+  const [newOperation, setNewOperation] = useState({
+    invoiceNumber: '',
+    team: '',
+    members: '',
+    date: new Date().toISOString().split('T')[0],
+    revenue: '',
+    materialCost: '',
+    fuelCost: '',
+    isPaid: false,
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const NavItem = ({ id, icon: Icon, label }: any) => (
 
@@ -1864,7 +1880,7 @@ export default function SolarSaaS() {
 
                 {activeTab === 'warehouse' && <Warehouse />}
 
-                {activeTab === 'operations' && <Operations />}
+                {activeTab === 'operations' && <Operations refreshTrigger={refreshTrigger} />}
 
                 {activeTab === 'invoices' && <Invoices />}
 
@@ -1872,25 +1888,247 @@ export default function SolarSaaS() {
 
         </div>
 
-        {/* Placeholder Modal for Add Operation */}
+        {/* Modal for Add Operation */}
 
         {isModalOpen && (
 
-            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setIsModalOpen(false)}>
 
-                <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full">
+                <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
 
-                    <h2 className="text-xl font-bold mb-4">Добавить операцию</h2>
+                    <h2 className="text-xl font-bold mb-6">Добавить операцию</h2>
 
-                    <p className="text-slate-500 mb-6">Эта форма подключается к базе данных операций.</p>
+                    {submitError && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                            {submitError}
+                        </div>
+                    )}
 
-                    <div className="flex justify-end gap-2">
+                    <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        setIsSubmitting(true);
+                        setSubmitError(null);
 
-                        <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-bold text-slate-500">Отмена</button>
+                        try {
+                            const profit = parseFloat(newOperation.revenue.toString()) 
+                                - parseFloat(newOperation.materialCost.toString()) 
+                                - parseFloat(newOperation.fuelCost.toString());
 
-                        <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold">ОК</button>
+                            const operationData = {
+                                invoiceNumber: newOperation.invoiceNumber,
+                                team: newOperation.team || null,
+                                members: newOperation.members,
+                                date: newOperation.date,
+                                revenue: parseFloat(newOperation.revenue.toString()),
+                                materialCost: parseFloat(newOperation.materialCost.toString()),
+                                fuelCost: parseFloat(newOperation.fuelCost.toString()),
+                                isPaid: newOperation.isPaid,
+                                profit: profit,
+                            };
 
-                    </div>
+                            const response = await fetch(`${API_BASE_URL}/operations`, {
+                                method: 'POST',
+                                mode: 'cors',
+                                credentials: 'omit',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                },
+                                body: JSON.stringify(operationData),
+                            });
+
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                            }
+
+                            // Reset form
+                            setNewOperation({
+                                invoiceNumber: '',
+                                team: '',
+                                members: '',
+                                date: new Date().toISOString().split('T')[0],
+                                revenue: '',
+                                materialCost: '',
+                                fuelCost: '',
+                                isPaid: false,
+                            });
+
+                            // Close modal and refresh operations list
+                            setIsModalOpen(false);
+                            setRefreshTrigger(prev => prev + 1);
+                        } catch (err) {
+                            const errorMessage = err instanceof Error ? err.message : 'Не удалось создать операцию';
+                            setSubmitError(errorMessage);
+                            console.error('Error creating operation:', err);
+                        } finally {
+                            setIsSubmitting(false);
+                        }
+                    }} className="space-y-4">
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Номер счета *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newOperation.invoiceNumber}
+                                    onChange={(e) => setNewOperation({ ...newOperation, invoiceNumber: e.target.value })}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="INV-001"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Команда
+                                </label>
+                                <select
+                                    value={newOperation.team}
+                                    onChange={(e) => setNewOperation({ ...newOperation, team: e.target.value })}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="">Не выбрано</option>
+                                    <option value="AC01">AC01</option>
+                                    <option value="AC02">AC02</option>
+                                    <option value="AC03">AC03</option>
+                                    <option value="AC04">AC04</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Участники *
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={newOperation.members}
+                                onChange={(e) => setNewOperation({ ...newOperation, members: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="Alex + Dima"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Дата *
+                            </label>
+                            <input
+                                type="date"
+                                required
+                                value={newOperation.date}
+                                onChange={(e) => setNewOperation({ ...newOperation, date: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Выручка (€) *
+                                </label>
+                                <input
+                                    type="number"
+                                    required
+                                    step="0.01"
+                                    min="0"
+                                    value={newOperation.revenue}
+                                    onChange={(e) => setNewOperation({ ...newOperation, revenue: e.target.value })}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="0.00"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Материалы (€) *
+                                </label>
+                                <input
+                                    type="number"
+                                    required
+                                    step="0.01"
+                                    min="0"
+                                    value={newOperation.materialCost}
+                                    onChange={(e) => setNewOperation({ ...newOperation, materialCost: e.target.value })}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="0.00"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Топливо (€) *
+                                </label>
+                                <input
+                                    type="number"
+                                    required
+                                    step="0.01"
+                                    min="0"
+                                    value={newOperation.fuelCost}
+                                    onChange={(e) => setNewOperation({ ...newOperation, fuelCost: e.target.value })}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="isPaid"
+                                checked={newOperation.isPaid}
+                                onChange={(e) => setNewOperation({ ...newOperation, isPaid: e.target.checked })}
+                                className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                            />
+                            <label htmlFor="isPaid" className="text-sm font-medium text-slate-700">
+                                Оплачено
+                            </label>
+                        </div>
+
+                        {newOperation.revenue && newOperation.materialCost && newOperation.fuelCost && (
+                            <div className="p-3 bg-slate-50 rounded-lg">
+                                <p className="text-sm text-slate-600">
+                                    <strong>Прибыль:</strong>{' '}
+                                    <span className={parseFloat(newOperation.revenue.toString()) - parseFloat(newOperation.materialCost.toString()) - parseFloat(newOperation.fuelCost.toString()) >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                                        {formatEUR(parseFloat(newOperation.revenue.toString()) - parseFloat(newOperation.materialCost.toString()) - parseFloat(newOperation.fuelCost.toString()))}
+                                    </span>
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsModalOpen(false);
+                                    setSubmitError(null);
+                                }}
+                                className="px-4 py-2 font-bold text-slate-500 hover:text-slate-700"
+                                disabled={isSubmitting}
+                            >
+                                Отмена
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        Сохранение...
+                                    </>
+                                ) : (
+                                    'Создать операцию'
+                                )}
+                            </button>
+                        </div>
+
+                    </form>
 
                 </div>
 
