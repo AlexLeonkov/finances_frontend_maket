@@ -30,13 +30,15 @@ import {
 
 // --- CONFIG & CONSTANTS ---
 
-// Backend API URL configuration:
-// - VITE_API_URL: явно заданный URL (для Vercel production)
-// - Если не задан и dev режим: используем /api (Vite proxy на Heroku) 
-// - Иначе: используем Heroku URL по умолчанию
-const HEROKU_BACKEND_URL = 'https://bakcenderp-c6bdf019f05d.herokuapp.com';
+// Backend API URL configuration (приоритет):
+// 1. VITE_API_URL из env переменной (если задана)
+// 2. VITE_BACKEND_URL из env переменной (если задана) 
+// 3. Если dev режим: используем /api (Vite proxy)
+// 4. Иначе: захардкоженный Heroku URL по умолчанию
+const DEFAULT_HEROKU_URL = 'https://bakcenderp-c6bdf019f05d.herokuapp.com';
 const isDev = (import.meta as any).env?.DEV || (import.meta as any).env?.MODE === 'development';
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || (isDev ? '/api' : HEROKU_BACKEND_URL);
+const envApiUrl = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_BACKEND_URL;
+const API_BASE_URL = envApiUrl || (isDev ? '/api' : DEFAULT_HEROKU_URL);
 
 const COLORS = {
 
