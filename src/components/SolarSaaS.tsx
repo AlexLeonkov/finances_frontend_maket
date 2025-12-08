@@ -321,13 +321,23 @@ const Dashboard = () => {
       });
   };
 
+  // Normalize team name - replace cyrillic С with latin C, uppercase and trim
+  const normalizeTeam = (team: string | null | undefined): string => {
+    if (!team) return 'Без команды';
+    // Replace cyrillic С (U+0421) with latin C (U+0043) and А (U+0410) with A (U+0041)
+    return team.trim()
+      .replace(/А/g, 'A')  // Replace cyrillic А with latin A
+      .replace(/С/g, 'C')  // Replace cyrillic С with latin C
+      .toUpperCase();
+  };
+
   // Calculate team performance
   const calculateTeamPerformance = () => {
     const filteredOps = getFilteredOperations();
     const teamStats: { [key: string]: { revenue: number; profit: number; count: number; margin: number } } = {};
     
     filteredOps.forEach(op => {
-      const teamKey = op.team || 'Без команды';
+      const teamKey = normalizeTeam(op.team);
       
       if (!teamStats[teamKey]) {
         teamStats[teamKey] = { revenue: 0, profit: 0, count: 0, margin: 0 };
@@ -587,7 +597,7 @@ const Dashboard = () => {
       </div>
 
       {/* WARNINGS BLOCK */}
-
+{/* 
       {kpis.unprofitableCount > 0 && (
         <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
 
@@ -619,7 +629,7 @@ const Dashboard = () => {
           </div>
 
         </div>
-      )}
+      )} */}
 
       {/* TEAM PERFORMANCE SECTION */}
       {teamPerformance.length > 0 && (
@@ -823,6 +833,16 @@ const Dashboard = () => {
 
 // ============================================
 
+// Helper function to normalize team names - replace cyrillic С with latin C
+const normalizeTeam = (team: string | null | undefined): string => {
+    if (!team) return 'Без команды';
+    // Replace cyrillic С (U+0421) with latin C (U+0043) and А (U+0410) with A (U+0041)
+    return team.trim()
+      .replace(/А/g, 'A')  // Replace cyrillic А with latin A
+      .replace(/С/g, 'C')  // Replace cyrillic С with latin C
+      .toUpperCase();
+};
+
 const Teams = () => {
 
     const [operations, setOperations] = useState<Operation[]>([]);
@@ -884,7 +904,7 @@ const Teams = () => {
         const teamStats: { [key: string]: { revenue: number; profit: number; count: number; margin: number } } = {};
         
         filteredOperations.forEach(op => {
-          const teamKey = op.team || 'Без команды';
+          const teamKey = normalizeTeam(op.team);
           
           if (!teamStats[teamKey]) {
             teamStats[teamKey] = { revenue: 0, profit: 0, count: 0, margin: 0 };
@@ -910,7 +930,8 @@ const Teams = () => {
     };
 
     const getTeamHistory = (teamId: string) => {
-        const teamOps = filteredOperations.filter(op => op.team === teamId);
+        const normalizedTeamId = normalizeTeam(teamId);
+        const teamOps = filteredOperations.filter(op => normalizeTeam(op.team) === normalizedTeamId);
         const monthly: { [key: string]: { revenue: number; profit: number } } = {};
       
         teamOps.forEach(op => {
@@ -937,10 +958,11 @@ const Teams = () => {
     };
 
     const teamPerformance = calculateTeamPerformance();
-    const selectedStats = selectedTeam ? teamPerformance.find(t => t.team === selectedTeam) : null;
+    const normalizedSelectedTeam = selectedTeam ? normalizeTeam(selectedTeam) : null;
+    const selectedStats = normalizedSelectedTeam ? teamPerformance.find(t => normalizeTeam(t.team) === normalizedSelectedTeam) : null;
     const selectedTeamMeta = selectedTeam ? TEAMS.find(t => t.id === selectedTeam) : null;
     const selectedTeamHistory = selectedTeam ? getTeamHistory(selectedTeam) : [];
-    const selectedTeamOperations = selectedTeam ? filteredOperations.filter(op => op.team === selectedTeam).slice(0, 5) : [];
+    const selectedTeamOperations = normalizedSelectedTeam ? filteredOperations.filter(op => normalizeTeam(op.team) === normalizedSelectedTeam).slice(0, 5) : [];
 
     if (loading) {
         return (
@@ -1821,16 +1843,16 @@ export default function SolarSaaS() {
             <p className="px-4 text-xs font-bold text-slate-400 uppercase mb-2">Основное</p>
 
             <NavItem id="dashboard" icon={LayoutGrid} label="Дашборд" />
-
-            <NavItem id="teams" icon={Users} label="Команды" />
+{/* 
+            <NavItem id="teams" icon={Users} label="Команды" /> */}
 
             <NavItem id="operations" icon={Layers} label="Операции" />
 
-            <NavItem id="warehouse" icon={Box} label="Склад" />
-
+            {/* <NavItem id="warehouse" icon={Box} label="Склад" /> */}
+{/* 
             <p className="px-4 text-xs font-bold text-slate-400 uppercase mb-2 mt-6">Финансы</p>
 
-            <NavItem id="invoices" icon={FileText} label="Счета" />
+            <NavItem id="invoices" icon={FileText} label="Счета" /> */}
 
         </nav>
 
@@ -1914,9 +1936,12 @@ export default function SolarSaaS() {
                                 - parseFloat(newOperation.materialCost.toString()) 
                                 - parseFloat(newOperation.fuelCost.toString());
 
+                            // Normalize team to uppercase and trim
+                            const normalizedTeam = newOperation.team ? newOperation.team.trim().toUpperCase() : null;
+                            
                             const operationData = {
                                 invoiceNumber: newOperation.invoiceNumber,
-                                team: newOperation.team || null,
+                                team: normalizedTeam,
                                 members: newOperation.members,
                                 date: newOperation.date,
                                 revenue: parseFloat(newOperation.revenue.toString()),
