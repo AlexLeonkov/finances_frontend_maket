@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { 
 
@@ -16,7 +17,7 @@ import {
 
   Home, Plug, Loader2, AlertCircle, 
 
-  Package
+  Package, TrendingUp
 
 } from 'lucide-react';
 
@@ -132,6 +133,27 @@ interface Operation {
   isPaid: boolean;
   profit: number;
   createdAt: string;
+}
+
+interface BackendStatsTeam {
+  name: string;
+  operations: number;
+  revenue: number;
+  profit: number;
+}
+
+interface BackendStatsResponse {
+  period: {
+    start: string;
+    end: string;
+  };
+  totals: {
+    operations: number;
+    revenue: number;
+    profit: number;
+    expenses: number;
+  };
+  teams: BackendStatsTeam[];
 }
 
 // --- UTILS ---
@@ -1349,6 +1371,378 @@ const Warehouse = () => {
 
 // ============================================
 
+// PAGE: BACKEND DASHBOARD
+
+// ============================================
+
+const BackendDashboard = () => {
+  const [stats, setStats] = useState<BackendStatsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  // Helper to get date presets
+  const getDatePresets = () => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    // Get first day of current month
+    const firstDayCurrentMonth = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
+    
+    // Get first day of previous month
+    const firstDayPrevMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0];
+    
+    // Get last day of previous month
+    const lastDayPrevMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0];
+
+    // Get first day of current quarter
+    const quarterStartMonth = Math.floor(currentMonth / 3) * 3;
+    const firstDayQuarter = new Date(currentYear, quarterStartMonth, 1).toISOString().split('T')[0];
+
+    // Get first day of previous quarter
+    const prevQuarterStartMonth = quarterStartMonth - 3;
+    const prevQuarterYear = prevQuarterStartMonth < 0 ? currentYear - 1 : currentYear;
+    const firstDayPrevQuarter = new Date(prevQuarterYear, prevQuarterStartMonth < 0 ? 12 + prevQuarterStartMonth : prevQuarterStartMonth, 1).toISOString().split('T')[0];
+    const lastDayPrevQuarter = new Date(currentYear, quarterStartMonth, 0).toISOString().split('T')[0];
+
+    // Get first day of current year
+    const firstDayYear = new Date(currentYear, 0, 1).toISOString().split('T')[0];
+
+    // Get first day of previous year
+    const firstDayPrevYear = new Date(currentYear - 1, 0, 1).toISOString().split('T')[0];
+    const lastDayPrevYear = new Date(currentYear, 0, 0).toISOString().split('T')[0];
+
+    // Get today
+    const todayStr = today.toISOString().split('T')[0];
+
+    return {
+      'current-month': { start: firstDayCurrentMonth, end: todayStr, label: 'Текущий месяц' },
+      'previous-month': { start: firstDayPrevMonth, end: lastDayPrevMonth, label: 'Прошлый месяц' },
+      'current-quarter': { start: firstDayQuarter, end: todayStr, label: 'Текущий квартал' },
+      'previous-quarter': { start: firstDayPrevQuarter, end: lastDayPrevQuarter, label: 'Прошлый квартал' },
+      'current-year': { start: firstDayYear, end: todayStr, label: 'Текущий год' },
+      'previous-year': { start: firstDayPrevYear, end: lastDayPrevYear, label: 'Прошлый год' },
+      'all-time': { start: '', end: '', label: 'За все время' },
+    };
+  };
+
+  const applyPreset = (preset: string) => {
+    const presets = getDatePresets();
+    const selected = presets[preset as keyof typeof presets];
+    if (selected) {
+      setStartDate(selected.start);
+      setEndDate(selected.end);
+    }
+  };
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        
+        const queryString = params.toString();
+        const url = `${API_BASE_URL}/dashboard${queryString ? `?${queryString}` : ''}`;
+        
+        // Fetch stats from /dashboard endpoint
+        const response = await fetch(url, {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'omit',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Validate response structure
+        if (!data || !data.totals || !data.teams || !Array.isArray(data.teams)) {
+          throw new Error('Invalid response format from /dashboard endpoint');
+        }
+
+        setStats(data);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Не удалось загрузить статистику';
+        setError(errorMessage);
+        console.error('Error fetching backend stats:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [startDate, endDate]);
+
+  // Normalize team name for display
+  const normalizeTeamForDisplay = (name: string): string => {
+    return name.trim()
+      .replace(/А/g, 'A')
+      .replace(/С/g, 'C')
+      .toUpperCase();
+  };
+
+  // Get team color
+  const getTeamColor = (teamName: string): string => {
+    const normalized = normalizeTeamForDisplay(teamName);
+    return COLORS[normalized as keyof typeof COLORS] || '#94A3B8';
+  };
+
+  if (loading) {
+    return (
+      <div className="p-12 text-center">
+        <Loader2 className="animate-spin mx-auto mb-4 text-indigo-600" size={32} />
+        <p className="text-slate-500">Загрузка статистики...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center">
+        <AlertCircle className="mx-auto mb-4 text-red-500" size={32} />
+        <p className="text-red-600 font-medium mb-2">Ошибка загрузки</p>
+        <p className="text-slate-500 text-sm">{error}</p>
+        <p className="text-slate-400 text-xs mt-2">
+          Убедитесь, что бэкенд имеет эндпоинт /stats, /analytics или /dashboard
+        </p>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-slate-500">Нет данных для отображения</p>
+      </div>
+    );
+  }
+
+  // Calculate margin percentage
+  const calculateMargin = (revenue: number, profit: number): number => {
+    if (revenue === 0) return 0;
+    return parseFloat(((profit / revenue) * 100).toFixed(1));
+  };
+
+  const presets = getDatePresets();
+
+  return (
+    <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+      {/* Header with Date Filters */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <h2 className="text-2xl font-bold text-slate-800">Статистика с бэкенда</h2>
+          
+          {/* Date Presets */}
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(presets).map(([key, preset]) => (
+              <button
+                key={key}
+                onClick={() => applyPreset(key)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  startDate === preset.start && endDate === preset.end
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Date Range Inputs */}
+        <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-200">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Дата начала
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Дата окончания
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
+          </div>
+          {(startDate || endDate) && (
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Сбросить
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Period Display */}
+        <div className="mt-4 pt-4 border-t border-slate-200">
+          <p className="text-sm text-slate-500">
+            Период:{' '}
+            <span className="font-medium text-slate-700">
+              {startDate ? new Date(startDate).toLocaleDateString('ru-RU') : 'С начала'}
+              {' - '}
+              {endDate ? new Date(endDate).toLocaleDateString('ru-RU') : 'Сейчас'}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      {/* Total KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <p className="text-sm text-slate-500 mb-2">Всего операций</p>
+          <p className="text-3xl font-bold text-slate-800">{stats.totals.operations}</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <p className="text-sm text-slate-500 mb-2">Выручка (всего)</p>
+          <p className="text-3xl font-bold text-indigo-600">{formatEUR(stats.totals.revenue)}</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <p className="text-sm text-slate-500 mb-2">Чистая прибыль</p>
+          <p className={`text-3xl font-bold ${stats.totals.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {formatEUR(stats.totals.profit)}
+          </p>
+          <p className="text-xs text-slate-400 mt-1">
+            Маржа: {calculateMargin(stats.totals.revenue, stats.totals.profit)}%
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <p className="text-sm text-slate-500 mb-2">Расходы</p>
+          <p className="text-3xl font-bold text-amber-600">{formatEUR(stats.totals.expenses)}</p>
+        </div>
+      </div>
+
+      {/* Teams Performance */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-800 mb-6">Производительность команд</h3>
+        
+        <div className="space-y-4">
+          {stats.teams.map((team, index) => {
+            const normalizedName = normalizeTeamForDisplay(team.name);
+            const teamColor = getTeamColor(team.name);
+            const margin = calculateMargin(team.revenue, team.profit);
+            
+            return (
+              <div key={index} className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: teamColor }}
+                    ></div>
+                    <h4 className="font-bold text-slate-800">{normalizedName}</h4>
+                  </div>
+                  <span className="text-sm text-slate-500">{team.operations} операций</span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Выручка</p>
+                    <p className="text-lg font-bold text-slate-800">{formatEUR(team.revenue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Прибыль</p>
+                    <p className={`text-lg font-bold ${team.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {formatEUR(team.profit)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Маржа</p>
+                    <p className={`text-lg font-bold ${margin > 20 ? 'text-emerald-600' : margin > 0 ? 'text-amber-600' : 'text-red-600'}`}>
+                      {margin}%
+                    </p>
+                  </div>
+                </div>
+
+                {/* Progress bar for revenue */}
+                <div className="mt-4">
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full transition-all duration-500"
+                      style={{
+                        width: `${(team.revenue / stats.totals.revenue) * 100}%`,
+                        backgroundColor: teamColor,
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {(team.revenue / stats.totals.revenue * 100).toFixed(1)}% от общей выручки
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Teams Chart */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-800 mb-6">Выручка по командам</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={stats.teams.map(team => ({
+            name: normalizeTeamForDisplay(team.name),
+            revenue: team.revenue,
+            profit: team.profit,
+            color: getTeamColor(team.name),
+          }))}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0"/>
+            <XAxis 
+              dataKey="name" 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748B', fontSize: 12 }}
+            />
+            <YAxis 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#64748B', fontSize: 12 }}
+              tickFormatter={(val) => `€${(val/1000).toFixed(0)}k`}
+            />
+            <Tooltip 
+              contentStyle={{borderRadius:'8px', border:'none', boxShadow:'0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+              formatter={(value: number) => formatEUR(value)}
+            />
+            <Bar dataKey="revenue" fill="#4F46E5" radius={[4,4,0,0]} name="Выручка" />
+            <Bar dataKey="profit" fill="#10B981" radius={[4,4,0,0]} name="Прибыль" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+
 // PAGE: OPERATIONS / PROJECTS LIST
 
 // ============================================
@@ -1776,7 +2170,29 @@ const Invoices = () => {
 
 export default function SolarSaaS() {
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Redirect root to dashboard
+  useEffect(() => {
+    if (location.pathname === '/') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [location.pathname, navigate]);
+  
+  // Get active tab from URL path
+  const getActiveTab = () => {
+    const path = location.pathname;
+    if (path === '/' || path === '/dashboard') return 'dashboard';
+    if (path === '/stats') return 'backend-dashboard';
+    if (path === '/operations') return 'operations';
+    if (path === '/teams') return 'teams';
+    if (path === '/warehouse') return 'warehouse';
+    if (path === '/invoices') return 'invoices';
+    return 'dashboard';
+  };
+  
+  const activeTab = getActiveTab();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -1798,23 +2214,23 @@ export default function SolarSaaS() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const NavItem = ({ id, icon: Icon, label }: any) => (
+  const NavItem = ({ id, icon: Icon, label, path }: { id: string; icon: any; label: string; path: string }) => {
 
-    <button 
+    const handleClick = () => {
+      navigate(path);
+      setIsMobileMenuOpen(false);
+    };
 
-      onClick={() => { setActiveTab(id); setIsMobileMenuOpen(false); }}
-
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'text-slate-500 hover:bg-white hover:text-slate-800'}`}
-
-    >
-
-      <Icon size={20} />
-
-      {label}
-
-    </button>
-
-  );
+    return (
+      <button 
+        onClick={handleClick}
+        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'text-slate-500 hover:bg-white hover:text-slate-800'}`}
+      >
+        <Icon size={20} />
+        {label}
+      </button>
+    );
+  };
 
   return (
 
@@ -1842,11 +2258,14 @@ export default function SolarSaaS() {
 
             <p className="px-4 text-xs font-bold text-slate-400 uppercase mb-2">Основное</p>
 
-            <NavItem id="dashboard" icon={LayoutGrid} label="Дашборд" />
-{/* 
-            <NavItem id="teams" icon={Users} label="Команды" /> */}
+            <NavItem id="dashboard" path="/dashboard" icon={LayoutGrid} label="Дашборд" />
+            
+            <NavItem id="backend-dashboard" path="/stats" icon={TrendingUp} label="Статистика" />
 
-            <NavItem id="operations" icon={Layers} label="Операции" />
+{/* 
+            <NavItem id="teams" path="/teams" icon={Users} label="Команды" /> */}
+
+            <NavItem id="operations" path="/operations" icon={Layers} label="Операции" />
 
             {/* <NavItem id="warehouse" icon={Box} label="Склад" /> */}
 {/* 
@@ -1874,7 +2293,11 @@ export default function SolarSaaS() {
 
                <h1 className="text-xl font-bold text-slate-800 capitalize">
 
-                   {activeTab === 'invoices' ? 'Управление счетами' : activeTab === 'dashboard' ? 'Обзор компании' : activeTab}
+                   {location.pathname === '/invoices' ? 'Управление счетами' 
+                    : location.pathname === '/dashboard' || location.pathname === '/' ? 'Обзор компании' 
+                    : location.pathname === '/stats' ? 'Статистика'
+                    : location.pathname === '/operations' ? 'Операции'
+                    : location.pathname.slice(1)}
 
                </h1>
 
@@ -1896,15 +2319,17 @@ export default function SolarSaaS() {
 
             <div className="max-w-7xl mx-auto">
 
-                {activeTab === 'dashboard' && <Dashboard />}
+                {(location.pathname === '/' || location.pathname === '/dashboard') && <Dashboard />}
 
-                {activeTab === 'teams' && <Teams />}
+                {location.pathname === '/stats' && <BackendDashboard />}
 
-                {activeTab === 'warehouse' && <Warehouse />}
+                {location.pathname === '/teams' && <Teams />}
 
-                {activeTab === 'operations' && <Operations refreshTrigger={refreshTrigger} />}
+                {location.pathname === '/warehouse' && <Warehouse />}
 
-                {activeTab === 'invoices' && <Invoices />}
+                {location.pathname === '/operations' && <Operations refreshTrigger={refreshTrigger} />}
+
+                {location.pathname === '/invoices' && <Invoices />}
 
             </div>
 
