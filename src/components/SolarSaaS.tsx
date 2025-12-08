@@ -30,6 +30,14 @@ import {
 
 // --- CONFIG & CONSTANTS ---
 
+// Backend API URL configuration:
+// - VITE_API_URL: явно заданный URL (для Vercel production)
+// - Если не задан и dev режим: используем /api (Vite proxy на Heroku) 
+// - Иначе: используем Heroku URL по умолчанию
+const HEROKU_BACKEND_URL = 'https://bakcenderp-c6bdf019f05d.herokuapp.com';
+const isDev = (import.meta as any).env?.DEV || (import.meta as any).env?.MODE === 'development';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || (isDev ? '/api' : HEROKU_BACKEND_URL);
+
 const COLORS = {
 
   AC01: '#3B82F6', AC02: '#10B981', AC03: '#F59E0B', AC04: '#EC4899',
@@ -229,20 +237,15 @@ const Dashboard = () => {
         setLoading(true);
         setError(null);
         
-        let url = '/api/operations';
-        let response: Response;
-        
-        try {
-          response = await fetch(url);
-        } catch (proxyError) {
-          console.warn('Proxy failed, trying direct connection:', proxyError);
-          url = 'http://localhost:3000/operations';
-          response = await fetch(url, {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-        }
+        // Direct backend call using Heroku URL from env
+        const response = await fetch(`${API_BASE_URL}/operations`, {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'omit',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -257,11 +260,19 @@ const Dashboard = () => {
           : 'Failed to load operations';
         
         let userMessage = 'Не удалось загрузить данные';
-        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
-          userMessage = 'Не удалось подключиться к серверу. Убедитесь, что backend запущен на http://localhost:3000';
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError') || errorMessage.includes('CORS')) {
+          userMessage = 'Ошибка CORS: Сервер не отправляет заголовок Access-Control-Allow-Origin. Backend должен разрешать запросы с этого домена.';
+        } else if (errorMessage.includes('Unexpected token') || errorMessage.includes('JSON')) {
+          userMessage = 'Ошибка формата данных: Сервер вернул невалидный JSON.';
         } else if (errorMessage.includes('HTTP error')) {
           userMessage = `Ошибка сервера: ${errorMessage}`;
         }
+        
+        console.error('Full error details:', {
+          message: errorMessage,
+          error: err,
+          url: `${API_BASE_URL}/operations`
+        });
         
         setError(userMessage);
         console.error('Error fetching operations:', err);
@@ -824,20 +835,12 @@ const Teams = () => {
             setLoading(true);
             setError(null);
             
-            let url = '/api/operations';
-            let response: Response;
-            
-            try {
-              response = await fetch(url);
-            } catch (proxyError) {
-              console.warn('Proxy failed, trying direct connection:', proxyError);
-              url = 'http://localhost:3000/operations';
-              response = await fetch(url, {
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              });
-            }
+            // Direct backend call using Heroku URL from env
+            const response = await fetch(`${API_BASE_URL}/operations`, {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
             
             if (!response.ok) {
               throw new Error(`HTTP error! status: ${response.status}`);
@@ -852,8 +855,8 @@ const Teams = () => {
               : 'Failed to load operations';
             
             let userMessage = 'Не удалось загрузить данные';
-            if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
-              userMessage = 'Не удалось подключиться к серверу. Убедитесь, что backend запущен на http://localhost:3000';
+            if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError') || errorMessage.includes('CORS')) {
+              userMessage = 'Ошибка CORS: Backend должен разрешать запросы с этого домена. Проверьте настройки CORS на сервере.';
             } else if (errorMessage.includes('HTTP error')) {
               userMessage = `Ошибка сервера: ${errorMessage}`;
             }
@@ -1337,22 +1340,15 @@ const Operations = () => {
                 setLoading(true);
                 setError(null);
                 
-                // Try proxy first, fallback to direct URL
-                let url = '/api/operations';
-                let response: Response;
-                
-                try {
-                    response = await fetch(url);
-                } catch (proxyError) {
-                    // If proxy fails, try direct connection
-                    console.warn('Proxy failed, trying direct connection:', proxyError);
-                    url = 'http://localhost:3000/operations';
-                    response = await fetch(url, {
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                    });
-                }
+                // Direct backend call
+                const response = await fetch(`${API_BASE_URL}/operations`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                });
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -1369,7 +1365,7 @@ const Operations = () => {
                 // More user-friendly error messages
                 let userMessage = 'Не удалось загрузить операции';
                 if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
-                    userMessage = 'Не удалось подключиться к серверу. Убедитесь, что backend запущен на http://localhost:3000';
+                    userMessage = 'Не удалось подключиться к серверу. Проверьте настройки API.';
                 } else if (errorMessage.includes('HTTP error')) {
                     userMessage = `Ошибка сервера: ${errorMessage}`;
                 }

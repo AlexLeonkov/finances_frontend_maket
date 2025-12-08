@@ -63,6 +63,28 @@ finances_frontend/
 └── tailwind.config.js        # Tailwind config
 ```
 
+## API Configuration
+
+The app connects to the backend API at `https://bakcenderp-c6bdf019f05d.herokuapp.com`
+
+### Development Mode
+- Automatically uses Vite proxy (`/api`) which forwards to Heroku backend
+- No CORS issues because requests go through the dev server
+- No configuration needed - just run `npm run dev`
+
+### Production (Vercel)
+
+1. **Option 1: Automatic (recommended)**
+   - Just deploy - the app will use Heroku URL directly
+   - No environment variables needed
+
+2. **Option 2: Custom URL via Environment Variable**
+   - Go to Vercel project settings → Environment Variables
+   - Add: `VITE_API_URL=https://bakcenderp-c6bdf019f05d.herokuapp.com`
+   - Redeploy
+
+**Important:** The backend must have CORS enabled for your Vercel domain!
+
 ## Development
 
 The application uses:
