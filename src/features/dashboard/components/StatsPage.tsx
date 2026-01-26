@@ -11,6 +11,8 @@ export const StatsPage = () => {
   const presets = useMemo(() => getDatePresets(), []);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [appliedStartDate, setAppliedStartDate] = useState('');
+  const [appliedEndDate, setAppliedEndDate] = useState('');
 
   const applyPreset = (presetKey: string) => {
     const selected = presets[presetKey];
@@ -20,7 +22,8 @@ export const StatsPage = () => {
     }
   };
 
-  const { stats, loading, error } = useStats(startDate, endDate);
+  const { stats, loading, error } = useStats(appliedStartDate, appliedEndDate);
+  const canApply = startDate !== appliedStartDate || endDate !== appliedEndDate;
 
   if (loading) {
     return (
@@ -62,7 +65,14 @@ export const StatsPage = () => {
         onReset={() => {
           setStartDate('');
           setEndDate('');
+          setAppliedStartDate('');
+          setAppliedEndDate('');
         }}
+        onApply={() => {
+          setAppliedStartDate(startDate);
+          setAppliedEndDate(endDate);
+        }}
+        canApply={canApply}
       />
 
       <StatsTotalsGrid totals={stats.totals} />

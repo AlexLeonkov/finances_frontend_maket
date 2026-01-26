@@ -8,6 +8,8 @@ type StatsDateFiltersProps = {
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onReset: () => void;
+  onApply: () => void;
+  canApply: boolean;
 };
 
 export const StatsDateFilters = ({
@@ -18,6 +20,8 @@ export const StatsDateFilters = ({
   onStartDateChange,
   onEndDateChange,
   onReset,
+  onApply,
+  canApply,
 }: StatsDateFiltersProps) => (
   <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
@@ -58,16 +62,23 @@ export const StatsDateFilters = ({
           className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
         />
       </div>
-      {(startDate || endDate) && (
-        <div className="flex items-end">
+      <div className="flex items-end gap-2">
+        {(startDate || endDate) && (
           <button
             onClick={onReset}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
           >
             Сбросить
           </button>
-        </div>
-      )}
+        )}
+        <button
+          onClick={onApply}
+          disabled={!canApply}
+          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Применить
+        </button>
+      </div>
     </div>
 
     <div className="mt-4 pt-4 border-t border-slate-200">
