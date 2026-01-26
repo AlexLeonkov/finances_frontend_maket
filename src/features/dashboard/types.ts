@@ -17,6 +17,7 @@ export interface StatsTeam {
   operations: number;
   revenue: number;
   profit: number;
+  salary?: number;
 }
 
 export interface StatsResponse {
@@ -29,6 +30,7 @@ export interface StatsResponse {
     revenue: number;
     profit: number;
     expenses: number;
+    salary?: number;
   };
   teams: StatsTeam[];
   dailyProfit?: DailyProfitPoint[];
@@ -54,6 +56,7 @@ export interface TypeBreakdownRow {
   materialCost: number;
   revenue?: number;
   profit: number;
+  salary?: number;
   profitPct: number;
   operations?: number;
 }
@@ -64,6 +67,7 @@ export interface DailyProfitPoint {
   revenue?: number;
   expenses?: number;
   operations?: number;
+  salary?: number;
 }
 
 export interface TeamTypePerformanceRow {
@@ -71,6 +75,7 @@ export interface TeamTypePerformanceRow {
   type: string;
   revenue: number;
   profit: number;
+  salary?: number;
   profitPct: number;
   operations: number;
 }

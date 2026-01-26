@@ -6,6 +6,7 @@ type StatsTotalsGridProps = {
     revenue: number;
     profit: number;
     expenses: number;
+    salary?: number;
   };
 };
 
@@ -14,8 +15,11 @@ const calculateMargin = (revenue: number, profit: number): number => {
   return parseFloat(((profit / revenue) * 100).toFixed(1));
 };
 
-export const StatsTotalsGrid = ({ totals }: StatsTotalsGridProps) => (
-  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+export const StatsTotalsGrid = ({ totals }: StatsTotalsGridProps) => {
+  const hasSalary = typeof totals.salary === 'number';
+
+  return (
+    <div className={`grid grid-cols-1 gap-4 ${hasSalary ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
     <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
       <p className="text-sm text-slate-500 mb-2">Всего операций</p>
       <p className="text-3xl font-bold text-slate-800">{totals.operations}</p>
@@ -38,5 +42,12 @@ export const StatsTotalsGrid = ({ totals }: StatsTotalsGridProps) => (
       <p className="text-sm text-slate-500 mb-2">Расходы</p>
       <p className="text-3xl font-bold text-amber-600">{formatEUR(totals.expenses)}</p>
     </div>
+    {hasSalary && (
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <p className="text-sm text-slate-500 mb-2">Зарплата</p>
+        <p className="text-3xl font-bold text-slate-800">{formatEUR(totals.salary!)}</p>
+      </div>
+    )}
   </div>
-);
+  );
+};

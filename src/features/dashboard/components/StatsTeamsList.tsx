@@ -21,6 +21,7 @@ export const StatsTeamsList = ({ teams, totalRevenue }: StatsTeamsListProps) => 
         const teamColor = getTeamColor(team.name);
         const margin = calculateMargin(team.revenue, team.profit);
         const revenueShare = totalRevenue > 0 ? (team.revenue / totalRevenue) * 100 : 0;
+        const hasSalary = typeof team.salary === 'number';
 
         return (
           <div key={`${team.name}-${index}`} className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -32,7 +33,7 @@ export const StatsTeamsList = ({ teams, totalRevenue }: StatsTeamsListProps) => 
               <span className="text-sm text-slate-500">{team.operations} операций</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className={`grid gap-4 ${hasSalary ? 'grid-cols-4' : 'grid-cols-3'}`}>
               <div>
                 <p className="text-xs text-slate-400 mb-1">Выручка</p>
                 <p className="text-lg font-bold text-slate-800">{formatEUR(team.revenue)}</p>
@@ -49,6 +50,12 @@ export const StatsTeamsList = ({ teams, totalRevenue }: StatsTeamsListProps) => 
                   {margin}%
                 </p>
               </div>
+              {hasSalary && (
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Зарплата</p>
+                  <p className="text-lg font-bold text-slate-800">{formatEUR(team.salary!)}</p>
+                </div>
+              )}
             </div>
 
             <div className="mt-4">
