@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { ElementType } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 
 import { LayoutGrid, TrendingUp, Zap } from 'lucide-react';
 
@@ -14,31 +13,13 @@ import { StatsPage } from '../features/dashboard/components/StatsPage';
 
 export default function SolarSaaS() {
 
-  const location = useLocation();
-  const navigate = useNavigate();
-  
-  // Redirect root to stats
-  useEffect(() => {
-    if (location.pathname === '/') {
-      navigate('/stats', { replace: true });
-    }
-  }, [location.pathname, navigate]);
-  
-  // Get active tab from URL path
-  const getActiveTab = () => {
-    const path = location.pathname;
-    if (path === '/' || path === '/stats') return 'backend-dashboard';
-    return 'backend-dashboard';
-  };
-  
-  const activeTab = getActiveTab();
+  const activeTab = 'backend-dashboard';
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const NavItem = ({ id, icon: Icon, label, path }: { id: string; icon: ElementType; label: string; path: string }) => {
+  const NavItem = ({ id, icon: Icon, label }: { id: string; icon: ElementType; label: string }) => {
 
     const handleClick = () => {
-      navigate(path);
       setIsMobileMenuOpen(false);
     };
 
@@ -78,7 +59,7 @@ export default function SolarSaaS() {
         <nav className="flex-1 px-4 space-y-1 py-4">
 
             <p className="px-4 text-xs font-bold text-slate-400 uppercase mb-2">Основное</p>
-            <NavItem id="backend-dashboard" path="/stats" icon={TrendingUp} label="Статистика" />
+            <NavItem id="backend-dashboard" icon={TrendingUp} label="Статистика" />
 
         </nav>
 
@@ -110,7 +91,7 @@ export default function SolarSaaS() {
 
             <div className="max-w-7xl mx-auto">
 
-                {location.pathname === '/stats' && <StatsPage />}
+                <StatsPage />
 
             </div>
 

@@ -31,6 +31,10 @@ export interface StatsResponse {
     expenses: number;
   };
   teams: StatsTeam[];
+  dailyProfit?: DailyProfitPoint[];
+  typeBreakdown?: TypeBreakdownRow[];
+  teamTypePerformance?: TeamTypePerformanceRow[];
+  marginByTypeTeams?: { type: string; team: string; profit: number }[];
 }
 
 export interface MonthOption {
@@ -42,6 +46,33 @@ export interface MonthlyTrend {
   name: string;
   revenue: number;
   profit: number;
+}
+
+export interface TypeBreakdownRow {
+  type: string;
+  fuelCost: number;
+  materialCost: number;
+  revenue?: number;
+  profit: number;
+  profitPct: number;
+  operations?: number;
+}
+
+export interface DailyProfitPoint {
+  date: string;
+  profit: number;
+  revenue?: number;
+  expenses?: number;
+  operations?: number;
+}
+
+export interface TeamTypePerformanceRow {
+  team: string;
+  type: string;
+  revenue: number;
+  profit: number;
+  profitPct: number;
+  operations: number;
 }
 
 export interface TeamPerformance {
