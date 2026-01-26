@@ -31,6 +31,7 @@ export const StatsTeamTypeTable = ({ rows }: StatsTeamTypeTableProps) => {
             <th className="text-right py-3 px-3 font-semibold">Выручка</th>
             <th className="text-right py-3 px-3 font-semibold">Прибыль</th>
             <th className="text-right py-3 px-3 font-semibold">Маржа %</th>
+            <th className="text-right py-3 px-3 font-semibold">Зарплата</th>
             <th className="text-right py-3 pl-3 font-semibold">Операции</th>
           </tr>
         </thead>
@@ -42,6 +43,7 @@ export const StatsTeamTypeTable = ({ rows }: StatsTeamTypeTableProps) => {
               <td className="py-3 px-3 text-right">{formatEUR(row.revenue)}</td>
               <td className="py-3 px-3 text-right">{formatEUR(row.profit)}</td>
               <td className="py-3 px-3 text-right">{formatPercent(row.profitPct)}</td>
+              <td className="py-3 px-3 text-right">{row.salary !== undefined ? formatEUR(row.salary) : '—'}</td>
               <td className="py-3 pl-3 text-right">{row.operations}</td>
             </tr>
           ))}
