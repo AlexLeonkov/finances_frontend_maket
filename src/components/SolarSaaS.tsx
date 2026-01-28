@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import type { ElementType } from 'react';
 
-import { LayoutGrid, TrendingUp, Zap } from 'lucide-react';
+import { FileText, LayoutGrid, TrendingUp, Users, Zap } from 'lucide-react';
 
 import { StatsPage } from '../features/dashboard/components/StatsPage';
+import { CrmPage } from '../features/crm/components/CrmPage';
+import { PvIntakePage } from '../features/pvIntake/components/PvIntakePage';
 
 // --- COMPONENTS ---
 
@@ -12,14 +14,15 @@ import { StatsPage } from '../features/dashboard/components/StatsPage';
 // ============================================
 
 export default function SolarSaaS() {
-
-  const activeTab = 'backend-dashboard';
+  const [activeTab, setActiveTab] = useState<'backend-dashboard' | 'crm' | 'pv-intake'>(
+    'backend-dashboard'
+  );
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const NavItem = ({ id, icon: Icon, label }: { id: string; icon: ElementType; label: string }) => {
-
     const handleClick = () => {
+      setActiveTab(id as 'backend-dashboard' | 'crm' | 'pv-intake');
       setIsMobileMenuOpen(false);
     };
 
@@ -60,6 +63,8 @@ export default function SolarSaaS() {
 
             <p className="px-4 text-xs font-bold text-slate-400 uppercase mb-2">Основное</p>
             <NavItem id="backend-dashboard" icon={TrendingUp} label="Статистика" />
+            <NavItem id="crm" icon={Users} label="CRM" />
+            <NavItem id="pv-intake" icon={FileText} label="PV-Anmeldung" />
 
         </nav>
 
@@ -79,7 +84,13 @@ export default function SolarSaaS() {
 
                </button>
 
-               <h1 className="text-xl font-bold text-slate-800 capitalize">Статистика</h1>
+               <h1 className="text-xl font-bold text-slate-800 capitalize">
+                 {activeTab === 'crm'
+                   ? 'CRM'
+                   : activeTab === 'pv-intake'
+                     ? 'PV Intake & Anmeldung'
+                     : 'Статистика'}
+               </h1>
 
            </div>
 
@@ -91,7 +102,13 @@ export default function SolarSaaS() {
 
             <div className="max-w-7xl mx-auto">
 
-                <StatsPage />
+                {activeTab === 'crm' ? (
+                  <CrmPage />
+                ) : activeTab === 'pv-intake' ? (
+                  <PvIntakePage />
+                ) : (
+                  <StatsPage />
+                )}
 
             </div>
 
