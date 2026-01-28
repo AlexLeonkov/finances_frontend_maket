@@ -191,7 +191,7 @@ export const CrmLeadDetailPage = ({
       </button>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div>
             <p className="text-xs uppercase text-slate-400 font-semibold tracking-wide">
               {isNew ? 'New Lead' : 'Lead Profile'}
@@ -204,9 +204,9 @@ export const CrmLeadDetailPage = ({
               {draft.jobTitle ? ` · ${draft.jobTitle}` : ''}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <select
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="w-full sm:w-auto rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={draft.status}
               onChange={(event) =>
                 handleChange('status', event.target.value as Lead['status'])
@@ -220,14 +220,14 @@ export const CrmLeadDetailPage = ({
             </select>
             <button
               onClick={handleSave}
-              className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold shadow-sm hover:bg-indigo-700"
+              className="w-full sm:w-auto px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold shadow-sm hover:bg-indigo-700"
             >
               Save Lead
             </button>
             {!isNew && (
               <button
                 onClick={() => onDelete(draft.id)}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50"
               >
                 Delete
               </button>
@@ -235,7 +235,7 @@ export const CrmLeadDetailPage = ({
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
             <p className="text-xs text-slate-400 uppercase">Deal Value</p>
             <p className="text-lg font-semibold text-slate-800">
@@ -264,7 +264,7 @@ export const CrmLeadDetailPage = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-6">
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
             <div className="grid grid-cols-1 gap-4">
@@ -631,7 +631,7 @@ export const CrmLeadDetailPage = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-700">Activity & Chat</p>
@@ -639,9 +639,9 @@ export const CrmLeadDetailPage = ({
                   {sortedActivities.length} entries
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <select
-                  className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                  className="w-full sm:w-auto rounded-lg border border-slate-200 px-2 py-1 text-xs"
                   value={newActivityType}
                   onChange={(event) =>
                     setNewActivityType(event.target.value as LeadActivityType)
@@ -653,14 +653,14 @@ export const CrmLeadDetailPage = ({
                   <option value="meeting">Meeting</option>
                 </select>
                 <input
-                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                  className="w-full flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs"
                   placeholder="Write a chat message or call summary..."
                   value={newMessage}
                   onChange={(event) => setNewMessage(event.target.value)}
                 />
                 <button
                   onClick={() => addActivity(newActivityType, newMessage)}
-                  className="px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold"
+                  className="w-full sm:w-auto px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold"
                 >
                   Add
                 </button>
@@ -688,7 +688,7 @@ export const CrmLeadDetailPage = ({
                   {draft.tasks?.length ?? 0} tasks
                 </span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_110px] gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_120px] gap-2">
                 <input
                   className="rounded-lg border border-slate-200 px-3 py-2 text-xs"
                   placeholder="Add task..."
@@ -723,7 +723,7 @@ export const CrmLeadDetailPage = ({
                 {(draft.tasks ?? []).map((task) => (
                   <div
                     key={task.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"
+                    className="flex flex-col gap-2 rounded-lg border border-slate-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
                       <p

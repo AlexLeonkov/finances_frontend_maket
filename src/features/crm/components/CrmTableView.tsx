@@ -217,15 +217,16 @@ export const CrmTableView = ({
   });
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="min-w-[900px] w-full text-sm">
         <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="px-4 py-3 text-left font-semibold tracking-wide cursor-pointer select-none"
+                  className="px-4 py-3 text-left font-semibold tracking-wide cursor-pointer select-none whitespace-nowrap"
                   onClick={header.column.getToggleSortingHandler()}
                 >
                   <div className="flex items-center gap-2">
@@ -254,6 +255,7 @@ export const CrmTableView = ({
           ))}
         </tbody>
       </table>
+      </div>
       {table.getRowModel().rows.length === 0 && (
         <div className="py-10 text-center text-sm text-slate-400">No leads found.</div>
       )}

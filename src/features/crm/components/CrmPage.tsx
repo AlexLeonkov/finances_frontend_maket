@@ -5,6 +5,7 @@ import {
   LEAD_CATEGORY_LABELS,
   LEAD_SOURCE_LABELS,
   LEAD_STATUS_LABELS,
+  LEAD_STATUS_ORDER,
 } from '../constants';
 import { useLeads } from '../hooks/useLeads';
 import { CrmKanbanBoard } from './CrmKanbanBoard';
@@ -13,6 +14,7 @@ import { CrmTableView } from './CrmTableView';
 import { formatEUR } from '../../../shared/lib/format';
 
 type ViewMode = 'kanban' | 'table';
+type TimeRange = '7d' | '30d' | '90d' | 'ytd' | 'all';
 
 const createEmptyLead = (): Lead => ({
   id: '',
@@ -52,6 +54,7 @@ export const CrmPage = () => {
   const { leads, updateLead, createLead, deleteLead } = useLeads();
 
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+  const [timeRange, setTimeRange] = useState<TimeRange>('30d');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState<LeadCategory | 'all'>('all');
@@ -96,10 +99,30 @@ export const CrmPage = () => {
     );
   }, [filteredLeads, searchTerm]);
 
+  const statsLeads = useMemo(() => {
+    if (timeRange === 'all') {
+      return leads;
+    }
+    const now = new Date();
+    const start = new Date(now);
+    if (timeRange === '7d') {
+      start.setDate(now.getDate() - 7);
+    } else if (timeRange === '30d') {
+      start.setDate(now.getDate() - 30);
+    } else if (timeRange === '90d') {
+      start.setDate(now.getDate() - 90);
+    } else if (timeRange === 'ytd') {
+      start.setMonth(0, 1);
+      start.setHours(0, 0, 0, 0);
+    }
+    return leads.filter((lead) => new Date(lead.createdAt) >= start);
+  }, [leads, timeRange]);
+
   const stats = useMemo(() => {
-    const total = leads.length;
-    const won = leads.filter((lead) => lead.status === 'won').length;
-    const activeLeads = leads.filter(
+    const total = statsLeads.length;
+    const wonLeads = statsLeads.filter((lead) => lead.status === 'won');
+    const won = wonLeads.length;
+    const activeLeads = statsLeads.filter(
       (lead) => lead.status !== 'won' && lead.status !== 'lost'
     );
     const pipelineValue = activeLeads.reduce(
@@ -108,13 +131,17 @@ export const CrmPage = () => {
     );
     const avgDeal =
       total > 0
-        ? leads.reduce((sum, lead) => sum + (lead.estimatedValueEUR ?? 0), 0) / total
+        ? statsLeads.reduce((sum, lead) => sum + (lead.estimatedValueEUR ?? 0), 0) /
+          total
         : 0;
-    const openTasks = leads.reduce(
+    const openTasks = statsLeads.reduce(
       (sum, lead) => sum + (lead.tasks?.filter((task) => task.status === 'open').length ?? 0),
       0
     );
     const winRate = total > 0 ? Math.round((won / total) * 100) : 0;
+    const commercial = statsLeads.filter((lead) =>
+      ['commercial', 'industrial'].includes(lead.propertyType ?? '')
+    ).length;
 
     return {
       total,
@@ -123,8 +150,43 @@ export const CrmPage = () => {
       avgDeal,
       winRate,
       openTasks,
+      wonValue: wonLeads.reduce(
+        (sum, lead) => sum + (lead.estimatedValueEUR ?? 0),
+        0
+      ),
+      commercial,
     };
-  }, [leads]);
+  }, [statsLeads]);
+
+  const statusBreakdown = useMemo(() => {
+    return LEAD_STATUS_ORDER.map((status) => {
+      const rows = statsLeads.filter((lead) => lead.status === status);
+      const value = rows.reduce((sum, lead) => sum + (lead.estimatedValueEUR ?? 0), 0);
+      return {
+        status,
+        count: rows.length,
+        value,
+      };
+    });
+  }, [statsLeads]);
+
+  const categoryBreakdown = useMemo(() => {
+    return Object.keys(LEAD_CATEGORY_LABELS).map((key) => {
+      const category = key as LeadCategory;
+      const rows = statsLeads.filter((lead) => lead.category === category);
+      const won = rows.filter((lead) => lead.status === 'won').length;
+      const total = rows.length;
+      const pipeline = rows
+        .filter((lead) => !['won', 'lost'].includes(lead.status))
+        .reduce((sum, lead) => sum + (lead.estimatedValueEUR ?? 0), 0);
+      return {
+        category,
+        count: total,
+        pipeline,
+        winRate: total > 0 ? Math.round((won / total) * 100) : 0,
+      };
+    });
+  }, [statsLeads]);
 
   const openLead = (lead: Lead) => {
     setSelectedLeadId(lead.id);
@@ -172,7 +234,33 @@ export const CrmPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800">CRM Performance</h2>
+          <p className="text-sm text-slate-500">
+            {timeRange === 'all' ? 'All time' : `Last ${timeRange.replace('d', ' days')}`}
+          </p>
+        </div>
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 sm:mx-0 sm:flex-wrap sm:overflow-visible">
+          <div className="flex gap-2 whitespace-nowrap sm:flex-wrap">
+            {(['7d', '30d', '90d', 'ytd', 'all'] as TimeRange[]).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                  timeRange === range
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-500 hover:bg-slate-100'
+                }`}
+              >
+                {range === 'ytd' ? 'YTD' : range.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs text-slate-400 uppercase">Total Leads</p>
           <p className="mt-2 text-2xl font-semibold text-slate-800">{stats.total}</p>
@@ -202,6 +290,77 @@ export const CrmPage = () => {
           <p className="mt-2 text-2xl font-semibold text-slate-800">{stats.openTasks}</p>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] gap-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-700">Pipeline by Stage</p>
+            <span className="text-xs text-slate-400">
+              {formatEUR(stats.pipelineValue)} active
+            </span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {statusBreakdown.map((row) => {
+              const width =
+                stats.total > 0 ? Math.max(4, Math.round((row.count / stats.total) * 100)) : 0;
+              return (
+                <div key={row.status} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>{LEAD_STATUS_LABELS[row.status]}</span>
+                    <span>
+                      {row.count} · {formatEUR(row.value)}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div
+                      className="h-2 rounded-full bg-indigo-500"
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+          <p className="text-sm font-semibold text-slate-700">Business Mix</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+              <p className="text-xs text-slate-400 uppercase">Commercial Leads</p>
+              <p className="mt-2 text-lg font-semibold text-slate-800">{stats.commercial}</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+              <p className="text-xs text-slate-400 uppercase">Won Value</p>
+              <p className="mt-2 text-lg font-semibold text-slate-800">
+                {formatEUR(stats.wonValue)}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {categoryBreakdown.map((row) => {
+              const width =
+                stats.total > 0 ? Math.max(4, Math.round((row.count / stats.total) * 100)) : 0;
+              return (
+                <div key={row.category} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>{LEAD_CATEGORY_LABELS[row.category]}</span>
+                    <span>
+                      {row.count} · {row.winRate}% win · {formatEUR(row.pipeline)}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div
+                      className="h-2 rounded-full bg-emerald-500"
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-2">
@@ -227,17 +386,17 @@ export const CrmPage = () => {
             </button>
           </div>
 
-          <div className="flex flex-1 flex-wrap items-center gap-3 lg:justify-end">
+          <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Search leads..."
-              className="w-full md:w-56 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="w-full sm:w-60 rounded-lg border border-slate-200 px-3 py-2 text-sm"
             />
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as LeadStatus | 'all')}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="w-full sm:w-44 rounded-lg border border-slate-200 px-3 py-2 text-sm"
             >
               <option value="all">All statuses</option>
               {Object.entries(LEAD_STATUS_LABELS).map(([value, label]) => (
@@ -249,7 +408,7 @@ export const CrmPage = () => {
             <select
               value={categoryFilter}
               onChange={(event) => setCategoryFilter(event.target.value as LeadCategory | 'all')}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="w-full sm:w-44 rounded-lg border border-slate-200 px-3 py-2 text-sm"
             >
               <option value="all">All categories</option>
               {Object.entries(LEAD_CATEGORY_LABELS).map(([value, label]) => (
@@ -261,7 +420,7 @@ export const CrmPage = () => {
             <select
               value={sourceFilter}
               onChange={(event) => setSourceFilter(event.target.value as LeadSource | 'all')}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="w-full sm:w-44 rounded-lg border border-slate-200 px-3 py-2 text-sm"
             >
               <option value="all">All sources</option>
               {Object.entries(LEAD_SOURCE_LABELS).map(([value, label]) => (
@@ -272,7 +431,7 @@ export const CrmPage = () => {
             </select>
             <button
               onClick={openNewLead}
-              className="ml-auto lg:ml-0 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold shadow-sm hover:bg-indigo-700"
+              className="w-full sm:w-auto sm:ml-auto lg:ml-0 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold shadow-sm hover:bg-indigo-700"
             >
               New Lead
             </button>

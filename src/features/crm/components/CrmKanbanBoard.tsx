@@ -172,7 +172,7 @@ export const CrmKanbanBoard = ({ leads, onMove, onOpen }: CrmKanbanBoardProps) =
         setActiveOrigin(null);
       }}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="-mx-4 flex gap-4 overflow-x-auto pb-4 px-4 md:mx-0 md:px-0">
         {LEAD_STATUS_ORDER.map((status) => (
           <CrmKanbanColumn
             key={status}
