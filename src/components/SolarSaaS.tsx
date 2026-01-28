@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import type { ElementType } from 'react';
 
-import { FileText, LayoutGrid, TrendingUp, Users, Zap } from 'lucide-react';
+import { FileText, LayoutGrid, TrendingUp, Users, Wallet, Zap } from 'lucide-react';
 
 import { StatsPage } from '../features/dashboard/components/StatsPage';
 import { CrmPage } from '../features/crm/components/CrmPage';
 import { PvIntakePage } from '../features/pvIntake/components/PvIntakePage';
+import { FinanceDashboardPage } from '../features/finance/components/FinanceDashboardPage';
 
 // --- COMPONENTS ---
 
@@ -14,7 +15,9 @@ import { PvIntakePage } from '../features/pvIntake/components/PvIntakePage';
 // ============================================
 
 export default function SolarSaaS() {
-  const [activeTab, setActiveTab] = useState<'backend-dashboard' | 'crm' | 'pv-intake'>(
+  const [activeTab, setActiveTab] = useState<
+    'backend-dashboard' | 'crm' | 'pv-intake' | 'finance'
+  >(
     'backend-dashboard'
   );
 
@@ -22,7 +25,7 @@ export default function SolarSaaS() {
 
   const NavItem = ({ id, icon: Icon, label }: { id: string; icon: ElementType; label: string }) => {
     const handleClick = () => {
-      setActiveTab(id as 'backend-dashboard' | 'crm' | 'pv-intake');
+      setActiveTab(id as 'backend-dashboard' | 'crm' | 'pv-intake' | 'finance');
       setIsMobileMenuOpen(false);
     };
 
@@ -65,6 +68,7 @@ export default function SolarSaaS() {
             <NavItem id="backend-dashboard" icon={TrendingUp} label="Статистика" />
             <NavItem id="crm" icon={Users} label="CRM" />
             <NavItem id="pv-intake" icon={FileText} label="PV-Anmeldung" />
+            <NavItem id="finance" icon={Wallet} label="Finance" />
 
         </nav>
 
@@ -89,7 +93,9 @@ export default function SolarSaaS() {
                    ? 'CRM'
                    : activeTab === 'pv-intake'
                      ? 'PV Intake & Anmeldung'
-                     : 'Статистика'}
+                     : activeTab === 'finance'
+                       ? 'Finance Dashboard'
+                       : 'Статистика'}
                </h1>
 
            </div>
@@ -106,6 +112,8 @@ export default function SolarSaaS() {
                   <CrmPage />
                 ) : activeTab === 'pv-intake' ? (
                   <PvIntakePage />
+                ) : activeTab === 'finance' ? (
+                  <FinanceDashboardPage />
                 ) : (
                   <StatsPage />
                 )}
