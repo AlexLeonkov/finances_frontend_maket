@@ -9,7 +9,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Lead, LeadStatus } from '../types';
 import { LEAD_STATUS_ORDER } from '../constants';
@@ -24,6 +24,8 @@ type CrmKanbanBoardProps = {
 export const CrmKanbanBoard = ({ leads, onMove, onOpen }: CrmKanbanBoardProps) => {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeOrigin, setActiveOrigin] = useState<LeadStatus | null>(null);
+  const lastOverId = useRef<string | null>(null);
   const [columns, setColumns] = useState<Record<LeadStatus, string[]>>(() => {
     const initial: Record<LeadStatus, string[]> = {
       new: [],
@@ -93,6 +95,9 @@ export const CrmKanbanBoard = ({ leads, onMove, onOpen }: CrmKanbanBoardProps) =
 
   const handleDragOver = (event: DragOverEvent) => {
     const over = event.over?.id ? String(event.over.id) : null;
+    if (over) {
+      lastOverId.current = over;
+    }
 
     const activeContainer = getContainerId(String(event.active.id));
     const overContainer = getContainerId(over);
@@ -127,38 +132,44 @@ export const CrmKanbanBoard = ({ leads, onMove, onOpen }: CrmKanbanBoardProps) =
 
   const handleDragEnd = (event: DragEndEvent) => {
     const leadId = String(event.active.id);
-    const over = event.over?.id ? String(event.over.id) : null;
-    const activeContainer = getContainerId(leadId);
+    const over = event.over?.id ? String(event.over.id) : lastOverId.current;
     const overContainer = getContainerId(over);
 
-    if (activeContainer && overContainer) {
-      if (activeContainer === overContainer && over) {
-        const items = columns[activeContainer];
+    if (activeOrigin && overContainer) {
+      if (activeOrigin === overContainer && over) {
+        const items = columns[activeOrigin];
         const oldIndex = items.indexOf(leadId);
         const newIndex = items.indexOf(over);
         if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
           setColumns((prev) => ({
             ...prev,
-            [activeContainer]: arrayMove(prev[activeContainer], oldIndex, newIndex),
+            [activeOrigin]: arrayMove(prev[activeOrigin], oldIndex, newIndex),
           }));
         }
-      } else if (activeContainer !== overContainer) {
+      } else if (activeOrigin !== overContainer) {
         onMove(leadId, overContainer);
       }
     }
 
     setActiveId(null);
+    setActiveOrigin(null);
+    lastOverId.current = null;
   };
 
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      onDragStart={(event) => setActiveId(String(event.active.id))}
+      onDragStart={(event) => {
+        const id = String(event.active.id);
+        setActiveId(id);
+        setActiveOrigin(leadsById[id]?.status ?? null);
+      }}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={() => {
         setActiveId(null);
+        setActiveOrigin(null);
       }}
     >
       <div className="flex gap-4 overflow-x-auto pb-4">
