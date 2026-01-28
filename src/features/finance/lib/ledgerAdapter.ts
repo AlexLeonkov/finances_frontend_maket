@@ -1,7 +1,15 @@
 import type { FinanceLedgerRow, FinanceRow } from '../types';
 
-const toNumber = (value: number | null | undefined) =>
-  typeof value === 'number' && !Number.isNaN(value) ? value : 0;
+const toNumber = (value: unknown) => {
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? 0 : value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+};
 
 const toDateValue = (row: FinanceLedgerRow & Record<string, unknown>) =>
   String(row.ledger_date ?? row.ledgerDate ?? '');
