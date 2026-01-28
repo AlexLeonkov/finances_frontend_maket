@@ -8,8 +8,9 @@ import {
 } from '../constants';
 import { useLeads } from '../hooks/useLeads';
 import { CrmKanbanBoard } from './CrmKanbanBoard';
+import { CrmLeadDetailPage } from './CrmLeadDetailPage';
 import { CrmTableView } from './CrmTableView';
-import { LeadDrawer } from './LeadDrawer';
+import { formatEUR } from '../../../shared/lib/format';
 
 type ViewMode = 'kanban' | 'table';
 
@@ -17,6 +18,9 @@ const createEmptyLead = (): Lead => ({
   id: '',
   createdAt: new Date().toISOString(),
   customerName: '',
+  companyName: '',
+  jobTitle: '',
+  website: '',
   phone: '',
   email: '',
   address: '',
@@ -25,6 +29,19 @@ const createEmptyLead = (): Lead => ({
   status: 'new',
   priority: 'medium',
   estimatedValueEUR: 15000,
+  leadScore: 65,
+  dealProbability: 20,
+  expectedCloseDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+  nextContactAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2).toISOString(),
+  nextStep: 'Initial outreach',
+  propertyType: 'single_family',
+  systemSizeKwp: 8.5,
+  financing: 'unknown',
+  activities: [],
+  tasks: [],
+  files: [],
+  offerStatus: 'none',
+  lastOfferAt: null,
   tags: [],
   notes: '',
   lastContactAt: null,
@@ -40,9 +57,8 @@ export const CrmPage = () => {
   const [categoryFilter, setCategoryFilter] = useState<LeadCategory | 'all'>('all');
   const [sourceFilter, setSourceFilter] = useState<LeadSource | 'all'>('all');
 
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [creatingLead, setCreatingLead] = useState<Lead | null>(null);
 
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
@@ -65,41 +81,127 @@ export const CrmPage = () => {
       return filteredLeads;
     }
     return filteredLeads.filter((lead) =>
-      [lead.customerName, lead.address, lead.email ?? '', lead.phone ?? '']
+      [
+        lead.customerName,
+        lead.companyName ?? '',
+        lead.jobTitle ?? '',
+        lead.website ?? '',
+        lead.address,
+        lead.email ?? '',
+        lead.phone ?? '',
+      ]
         .join(' ')
         .toLowerCase()
         .includes(query)
     );
   }, [filteredLeads, searchTerm]);
 
+  const stats = useMemo(() => {
+    const total = leads.length;
+    const won = leads.filter((lead) => lead.status === 'won').length;
+    const activeLeads = leads.filter(
+      (lead) => lead.status !== 'won' && lead.status !== 'lost'
+    );
+    const pipelineValue = activeLeads.reduce(
+      (sum, lead) => sum + (lead.estimatedValueEUR ?? 0),
+      0
+    );
+    const avgDeal =
+      total > 0
+        ? leads.reduce((sum, lead) => sum + (lead.estimatedValueEUR ?? 0), 0) / total
+        : 0;
+    const openTasks = leads.reduce(
+      (sum, lead) => sum + (lead.tasks?.filter((task) => task.status === 'open').length ?? 0),
+      0
+    );
+    const winRate = total > 0 ? Math.round((won / total) * 100) : 0;
+
+    return {
+      total,
+      active: activeLeads.length,
+      pipelineValue,
+      avgDeal,
+      winRate,
+      openTasks,
+    };
+  }, [leads]);
+
   const openLead = (lead: Lead) => {
-    setEditingLead(lead);
-    setIsCreating(false);
-    setIsDrawerOpen(true);
+    setSelectedLeadId(lead.id);
+    setCreatingLead(null);
   };
 
   const openNewLead = () => {
-    setEditingLead(createEmptyLead());
-    setIsCreating(true);
-    setIsDrawerOpen(true);
+    setCreatingLead(createEmptyLead());
+    setSelectedLeadId(null);
   };
 
   const handleSave = (lead: Lead) => {
-    if (isCreating) {
+    if (creatingLead) {
       createLead({ ...lead, id: undefined });
     } else {
       updateLead(lead.id, lead);
     }
-    setIsDrawerOpen(false);
+    setSelectedLeadId(null);
+    setCreatingLead(null);
   };
 
   const handleDelete = (id: string) => {
     deleteLead(id);
-    setIsDrawerOpen(false);
+    setSelectedLeadId(null);
+    setCreatingLead(null);
   };
+
+  const activeLead = creatingLead ?? leads.find((lead) => lead.id === selectedLeadId) ?? null;
+  const isDetailView = Boolean(creatingLead || selectedLeadId);
+
+  if (isDetailView) {
+    return (
+      <CrmLeadDetailPage
+        lead={activeLead}
+        isNew={Boolean(creatingLead)}
+        onBack={() => {
+          setSelectedLeadId(null);
+          setCreatingLead(null);
+        }}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-400 uppercase">Total Leads</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-800">{stats.total}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-400 uppercase">Active</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-800">{stats.active}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-400 uppercase">Pipeline Value</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-800">
+            {formatEUR(stats.pipelineValue)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-400 uppercase">Avg Deal</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-800">
+            {formatEUR(stats.avgDeal)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-400 uppercase">Win Rate</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-800">{stats.winRate}%</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-400 uppercase">Open Tasks</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-800">{stats.openTasks}</p>
+        </div>
+      </div>
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-2">
@@ -193,14 +295,6 @@ export const CrmPage = () => {
         />
       )}
 
-      <LeadDrawer
-        lead={editingLead}
-        isOpen={isDrawerOpen}
-        isNew={isCreating}
-        onClose={() => setIsDrawerOpen(false)}
-        onSave={handleSave}
-        onDelete={handleDelete}
-      />
     </div>
   );
 };

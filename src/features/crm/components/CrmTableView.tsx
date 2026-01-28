@@ -13,6 +13,8 @@ import {
 import type { Lead } from '../types';
 import {
   LEAD_CATEGORY_LABELS,
+  LEAD_FINANCING_LABELS,
+  LEAD_OFFER_STATUS_LABELS,
   LEAD_SOURCE_LABELS,
   LEAD_STATUS_LABELS,
 } from '../constants';
@@ -30,14 +32,16 @@ const globalFilter: FilterFn<Lead> = (row, _columnId, value) => {
   if (!query) {
     return true;
   }
-  const { customerName, address, email, phone } = row.original;
-  return [customerName, address, email ?? '', phone ?? ''].some((field) =>
+  const { customerName, companyName, jobTitle, website, address, email, phone } = row.original;
+  return [customerName, companyName ?? '', jobTitle ?? '', website ?? '', address, email ?? '', phone ?? ''].some((field) =>
     field.toLowerCase().includes(query)
   );
 };
 
-const formatDate = (value: string) =>
-  new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+const formatDate = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+    : '—';
 
 export const CrmTableView = ({
   leads,
@@ -60,7 +64,23 @@ export const CrmTableView = ({
         cell: ({ row }) => (
           <div>
             <p className="font-semibold text-slate-800">{row.original.customerName}</p>
-            <p className="text-xs text-slate-500">{row.original.address}</p>
+            <p className="text-xs text-slate-500">
+              {row.original.companyName
+                ? `${row.original.companyName} • ${row.original.address}`
+                : row.original.address}
+            </p>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'nextStep',
+        header: 'Next Step',
+        cell: ({ row }) => (
+          <div className="space-y-1">
+            <p className="text-slate-700">{row.original.nextStep ?? '—'}</p>
+            <p className="text-xs text-slate-400">
+              Next contact: {formatDate(row.original.nextContactAt ?? null)}
+            </p>
           </div>
         ),
       },
@@ -104,6 +124,36 @@ export const CrmTableView = ({
         ),
       },
       {
+        accessorKey: 'leadScore',
+        header: 'Score',
+        cell: ({ getValue }) => {
+          const score = getValue() as number | null | undefined;
+          return score != null ? (
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+              {score}
+            </span>
+          ) : (
+            '—'
+          );
+        },
+      },
+      {
+        accessorKey: 'offerStatus',
+        header: 'Offer',
+        cell: ({ getValue }) => {
+          const value = getValue() as Lead['offerStatus'];
+          return value ? LEAD_OFFER_STATUS_LABELS[value] : '—';
+        },
+      },
+      {
+        accessorKey: 'dealProbability',
+        header: 'Prob',
+        cell: ({ getValue }) => {
+          const probability = getValue() as number | null | undefined;
+          return probability != null ? `${probability}%` : '—';
+        },
+      },
+      {
         accessorKey: 'priority',
         header: 'Priority',
         cell: ({ getValue }) => (
@@ -121,9 +171,31 @@ export const CrmTableView = ({
         cell: ({ getValue }) => formatDate(getValue() as string),
       },
       {
+        accessorKey: 'expectedCloseDate',
+        header: 'Close',
+        cell: ({ getValue }) => formatDate(getValue() as string | null | undefined),
+      },
+      {
         accessorKey: 'assignee',
         header: 'Assignee',
         cell: ({ getValue }) => (getValue() ? String(getValue()) : '—'),
+      },
+      {
+        accessorKey: 'tasks',
+        header: 'Tasks',
+        cell: ({ getValue }) => {
+          const tasks = (getValue() as Lead['tasks']) ?? [];
+          const open = tasks.filter((task) => task.status === 'open').length;
+          return `${open}/${tasks.length}`;
+        },
+      },
+      {
+        accessorKey: 'financing',
+        header: 'Financing',
+        cell: ({ getValue }) => {
+          const value = getValue() as Lead['financing'];
+          return value ? LEAD_FINANCING_LABELS[value] : '—';
+        },
       },
     ],
     [onStatusChange]

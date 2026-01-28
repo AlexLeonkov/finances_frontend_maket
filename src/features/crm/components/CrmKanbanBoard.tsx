@@ -12,7 +12,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Lead, LeadStatus } from '../types';
-import { LEAD_STATUS_ORDER } from '../constants';
+import { LEAD_CATEGORY_LABELS, LEAD_PRIORITY_LABELS, LEAD_STATUS_ORDER } from '../constants';
 import { CrmKanbanColumn } from './CrmKanbanColumn';
 
 type CrmKanbanBoardProps = {
@@ -191,7 +191,11 @@ export const CrmKanbanBoard = ({ leads, onMove, onOpen }: CrmKanbanBoardProps) =
                 <p className="font-semibold text-slate-800">
                   {leadsById[activeId].customerName}
                 </p>
-                <p className="text-xs text-slate-500">{leadsById[activeId].address}</p>
+                <p className="text-xs text-slate-500">
+                  {leadsById[activeId].companyName
+                    ? `${leadsById[activeId].companyName} • ${leadsById[activeId].address}`
+                    : leadsById[activeId].address}
+                </p>
               </div>
               <span className="text-xs font-semibold text-indigo-600">
                 €{leadsById[activeId].estimatedValueEUR.toLocaleString('de-DE')}
@@ -199,11 +203,16 @@ export const CrmKanbanBoard = ({ leads, onMove, onOpen }: CrmKanbanBoardProps) =
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
               <span className="rounded-full bg-slate-100 px-2 py-0.5">
-                {leadsById[activeId].category}
+                {LEAD_CATEGORY_LABELS[leadsById[activeId].category]}
               </span>
               <span className="rounded-full bg-slate-100 px-2 py-0.5">
-                {leadsById[activeId].priority}
+                {LEAD_PRIORITY_LABELS[leadsById[activeId].priority]}
               </span>
+              {typeof leadsById[activeId].dealProbability === 'number' && (
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">
+                  {leadsById[activeId].dealProbability}% prob
+                </span>
+              )}
             </div>
           </div>
         ) : null}
