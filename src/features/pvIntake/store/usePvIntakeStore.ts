@@ -47,7 +47,7 @@ const mergeExtractedData = (base: PvExtractedData, patch: Partial<PvExtractedDat
   },
 });
 
-const classifyAttachments = (attachments: Attachment[]) => {
+const classifyAttachments = (attachments: Attachment[]): Attachment[] => {
   let imageIndex = 0;
   return attachments.map((attachment) => {
     if (attachment.classification) {
@@ -61,14 +61,14 @@ const classifyAttachments = (attachments: Attachment[]) => {
       };
     }
 
-    const classificationOrder = [
+    const classificationOrder: Attachment['classification'][] = [
       'meter',
       'inverter_label',
       'battery_label',
       'switchboard',
       'roof',
       'meter_reading',
-    ] as const;
+    ];
     const classification =
       classificationOrder[imageIndex] ?? 'other';
     imageIndex += 1;
