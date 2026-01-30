@@ -37,10 +37,10 @@ export const FinanceSummaryCards = ({ rows }: FinanceSummaryCardsProps) => {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <StatCard label="Total income" value={formatEUR(totalIncome)} accent="green" />
-      <StatCard label="Total expenses" value={formatEUR(totalExpenses)} accent="red" />
-      <StatCard label="Salaries paid" value={formatEUR(totalSalaries)} accent="indigo" />
-      <StatCard label="Current balance" value={formatEUR(currentBalance)} accent="green" />
+      <StatCard label="Общий доход" value={formatEUR(totalIncome)} accent="green" />
+      <StatCard label="Общие расходы" value={formatEUR(totalExpenses)} accent="red" />
+      <StatCard label="Выплачено зарплат" value={formatEUR(totalSalaries)} accent="indigo" />
+      <StatCard label="Текущий баланс" value={formatEUR(currentBalance)} accent="green" />
     </div>
   );
 };

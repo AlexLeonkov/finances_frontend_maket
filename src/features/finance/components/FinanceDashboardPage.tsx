@@ -23,6 +23,20 @@ const getLatestMonthRows = (rows: typeof financeData) => {
   });
 };
 
+const SkeletonCard = () => (
+  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="h-3 w-24 rounded-full bg-slate-100" />
+    <div className="mt-3 h-6 w-32 rounded-full bg-slate-100" />
+  </div>
+);
+
+const SkeletonBlock = ({ height = 'h-64' }: { height?: string }) => (
+  <div className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${height}`}>
+    <div className="h-3 w-32 rounded-full bg-slate-100" />
+    <div className="mt-4 h-full rounded-xl bg-slate-100" />
+  </div>
+);
+
 export const FinanceDashboardPage = () => {
   const [apiRows, setApiRows] = useState<FinanceLedgerRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +61,7 @@ export const FinanceDashboardPage = () => {
         setApiRows(data);
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
-          setLoadError('Unable to load finance data.');
+          setLoadError('Не удалось загрузить финансовые данные.');
         }
       } finally {
         setIsLoading(false);
@@ -58,35 +72,57 @@ export const FinanceDashboardPage = () => {
   }, []);
 
   const monthRows = useMemo(() => {
-    const rows =
-      financeLedgerData.length > 0
-        ? mapLedgerToFinanceRows(financeLedgerData)
-        : apiRows.length > 0
-          ? mapLedgerToFinanceRows(apiRows)
-          : financeData;
-    return getLatestMonthRows(rows);
+    if (financeLedgerData.length > 0) {
+      return getLatestMonthRows(mapLedgerToFinanceRows(financeLedgerData));
+    }
+    if (apiRows.length > 0) {
+      return getLatestMonthRows(mapLedgerToFinanceRows(apiRows));
+    }
+    return [];
   }, [apiRows]);
 
   return (
     <div className="space-y-6">
-      {(isLoading || loadError) && (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-          {isLoading ? 'Loading finance data…' : loadError}
-        </div>
+      {isLoading && monthRows.length === 0 ? (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <SkeletonBlock />
+            <SkeletonBlock />
+          </div>
+          <SkeletonBlock height="h-72" />
+        </>
+      ) : (
+        <>
+          {loadError && monthRows.length === 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+              {loadError}
+            </div>
+          )}
+          <FinanceSummaryCards rows={monthRows} />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <BalanceChart rows={monthRows} />
+            <ExpenseBreakdownChart rows={monthRows} />
+          </div>
+        </>
       )}
-      <FinanceSummaryCards rows={monthRows} />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <BalanceChart rows={monthRows} />
-        <ExpenseBreakdownChart rows={monthRows} />
-      </div>
       <div className="space-y-3">
         <div>
           <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
-            Detailed cashflow
+            Детальный денежный поток
           </p>
-          <p className="text-lg font-semibold text-slate-800">Daily ledger</p>
+          <p className="text-lg font-semibold text-slate-800">Дневной журнал</p>
         </div>
-        <FinanceTable rows={monthRows} />
+        {isLoading && monthRows.length === 0 ? (
+          <SkeletonBlock height="h-80" />
+        ) : (
+          <FinanceTable rows={monthRows} />
+        )}
       </div>
     </div>
   );

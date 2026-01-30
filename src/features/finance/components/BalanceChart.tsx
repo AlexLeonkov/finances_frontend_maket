@@ -16,9 +16,9 @@ export const BalanceChart = ({ rows }: BalanceChartProps) => {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
-            Balance over time
+            Баланс во времени
           </p>
-          <p className="text-lg font-semibold text-slate-800">Closing balance</p>
+          <p className="text-lg font-semibold text-slate-800">Конечный баланс</p>
         </div>
       </div>
       <div className="h-64 mt-4">

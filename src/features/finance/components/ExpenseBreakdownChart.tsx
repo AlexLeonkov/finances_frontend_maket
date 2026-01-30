@@ -21,21 +21,21 @@ export const ExpenseBreakdownChart = ({ rows }: ExpenseBreakdownChartProps) => {
   );
 
   const data = [
-    { name: 'Materials', value: totals.materials },
-    { name: 'Salaries', value: totals.salaryPaid },
-    { name: 'Marketing', value: totals.marketing },
-    { name: 'Car', value: totals.car },
-    { name: 'Rent', value: totals.rent },
-    { name: 'Other', value: totals.other },
+    { name: 'Материалы', value: totals.materials },
+    { name: 'Зарплаты', value: totals.salaryPaid },
+    { name: 'Маркетинг', value: totals.marketing },
+    { name: 'Авто', value: totals.car },
+    { name: 'Аренда', value: totals.rent },
+    { name: 'Прочее', value: totals.other },
   ];
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div>
         <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
-          Expense breakdown
+          Структура расходов
         </p>
-        <p className="text-lg font-semibold text-slate-800">Monthly totals</p>
+        <p className="text-lg font-semibold text-slate-800">Итоги за месяц</p>
       </div>
       <div className="h-64 mt-4">
         <ResponsiveContainer width="100%" height="100%">

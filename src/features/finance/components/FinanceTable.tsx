@@ -23,22 +23,42 @@ export const FinanceTable = ({ rows }: FinanceTableProps) => {
 
   const columns = useMemo<ColumnDef<FinanceRow>[]>(
     () => [
-      { accessorKey: 'date', header: 'Date', cell: ({ getValue }) => formatDate(String(getValue())) },
+      {
+        accessorKey: 'date',
+        header: 'Дата',
+        cell: ({ getValue }) => formatDate(String(getValue())),
+      },
       {
         accessorKey: 'openingBalance',
-        header: 'Opening',
+        header: 'Открытие',
         cell: ({ getValue }) => formatEUR(Number(getValue())),
       },
       {
         id: 'income',
-        header: 'Income',
+        header: 'Доход',
         cell: ({ row }) =>
           formatEUR(row.original.incomeBills + row.original.otherIncome),
       },
-      { accessorKey: 'materials', header: 'Materials', cell: ({ getValue }) => formatEUR(Number(getValue())) },
-      { accessorKey: 'salaryPaid', header: 'Salaries', cell: ({ getValue }) => formatEUR(Number(getValue())) },
-      { accessorKey: 'totalExpenses', header: 'Total expenses', cell: ({ getValue }) => formatEUR(Number(getValue())) },
-      { accessorKey: 'closingBalance', header: 'Closing', cell: ({ getValue }) => formatEUR(Number(getValue())) },
+      {
+        accessorKey: 'materials',
+        header: 'Материалы',
+        cell: ({ getValue }) => formatEUR(Number(getValue())),
+      },
+      {
+        accessorKey: 'salaryPaid',
+        header: 'Зарплаты',
+        cell: ({ getValue }) => formatEUR(Number(getValue())),
+      },
+      {
+        accessorKey: 'totalExpenses',
+        header: 'Расходы всего',
+        cell: ({ getValue }) => formatEUR(Number(getValue())),
+      },
+      {
+        accessorKey: 'closingBalance',
+        header: 'Закрытие',
+        cell: ({ getValue }) => formatEUR(Number(getValue())),
+      },
     ],
     []
   );
