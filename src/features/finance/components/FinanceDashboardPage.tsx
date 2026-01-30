@@ -4,6 +4,7 @@ import { BalanceChart } from './BalanceChart';
 import { ExpenseBreakdownChart } from './ExpenseBreakdownChart';
 import { FinanceSummaryCards } from './FinanceSummaryCards';
 import { FinanceTable } from './FinanceTable';
+import { AddOperationModal } from './AddOperationModal';
 import { financeData } from '../mock/financeMock';
 import { financeLedgerData } from '../data/ledgerData';
 import { mapLedgerToFinanceRows } from '../lib/ledgerAdapter';
@@ -41,6 +42,7 @@ export const FinanceDashboardPage = () => {
   const [apiRows, setApiRows] = useState<FinanceLedgerRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (financeLedgerData.length > 0) {
@@ -83,6 +85,20 @@ export const FinanceDashboardPage = () => {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
+            Финансы
+          </p>
+          <p className="text-lg font-semibold text-slate-800">Главная страница</p>
+        </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 sm:w-auto"
+        >
+          Добавить операцию
+        </button>
+      </div>
       {isLoading && monthRows.length === 0 ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -124,6 +140,7 @@ export const FinanceDashboardPage = () => {
           <FinanceTable rows={monthRows} />
         )}
       </div>
+      <AddOperationModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 };
