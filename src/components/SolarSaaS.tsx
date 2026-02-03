@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ElementType } from 'react';
 
-import { FileText, LayoutGrid, TrendingUp, Users, Wallet, Zap } from 'lucide-react';
+import { FileText, LayoutGrid, Package, TrendingUp, Users, Wallet, Zap } from 'lucide-react';
 
 import { StatsPage } from '../features/dashboard/components/StatsPage';
 import { CrmPage } from '../features/crm/components/CrmPage';
@@ -16,7 +16,7 @@ import { FinanceDashboardPage } from '../features/finance/components/FinanceDash
 
 export default function SolarSaaS() {
   const [activeTab, setActiveTab] = useState<
-    'backend-dashboard' | 'crm' | 'pv-intake' | 'finance'
+    'backend-dashboard' | 'crm' | 'pv-intake' | 'finance' | 'materials'
   >(
     'backend-dashboard'
   );
@@ -25,7 +25,7 @@ export default function SolarSaaS() {
 
   const NavItem = ({ id, icon: Icon, label }: { id: string; icon: ElementType; label: string }) => {
     const handleClick = () => {
-      setActiveTab(id as 'backend-dashboard' | 'crm' | 'pv-intake' | 'finance');
+      setActiveTab(id as 'backend-dashboard' | 'crm' | 'pv-intake' | 'finance' | 'materials');
       setIsMobileMenuOpen(false);
     };
 
@@ -69,6 +69,7 @@ export default function SolarSaaS() {
             <NavItem id="crm" icon={Users} label="CRM" />
             <NavItem id="pv-intake" icon={FileText} label="PV-Anmeldung" />
             <NavItem id="finance" icon={Wallet} label="Finance" />
+            <NavItem id="materials" icon={Package} label="Материалы" />
 
         </nav>
 
@@ -95,6 +96,8 @@ export default function SolarSaaS() {
                      ? 'PV Intake & Anmeldung'
                      : activeTab === 'finance'
                        ? 'Finance Dashboard'
+                      : activeTab === 'materials'
+                        ? 'Материалы'
                        : 'Статистика'}
                </h1>
 
@@ -113,7 +116,9 @@ export default function SolarSaaS() {
                 ) : activeTab === 'pv-intake' ? (
                   <PvIntakePage />
                 ) : activeTab === 'finance' ? (
-                  <FinanceDashboardPage />
+                  <FinanceDashboardPage view="finance" />
+                ) : activeTab === 'materials' ? (
+                  <FinanceDashboardPage view="materials" />
                 ) : (
                   <StatsPage />
                 )}

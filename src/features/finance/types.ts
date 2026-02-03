@@ -36,3 +36,12 @@ export type FinanceLedgerRow = {
   source_row_id?: string | null;
   created_at?: string | null;
 };
+
+export type MaterialRow = {
+  id: string;
+  name: string;
+  price: number;
+  unit: string;
+  unit_type: string;
+  created_at?: string | null;
+};

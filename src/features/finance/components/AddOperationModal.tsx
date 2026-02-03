@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { materialsCatalog, type MaterialItem } from '../data/materialsCatalog';
+import type { MaterialRow } from '../types';
 import { formatEUR } from '../../../shared/lib/format';
+import { API_BASE_URL } from '../../../shared/api/baseUrl';
 
 type MaterialLine = {
   id: string;
-  material: MaterialItem;
+  material: MaterialRow;
   quantity: number;
+  isCustom?: boolean;
 };
 
 type AddOperationModalProps = {
@@ -14,7 +16,7 @@ type AddOperationModalProps = {
   onClose: () => void;
 };
 
-const createLine = (material: MaterialItem): MaterialLine => ({
+const createLine = (material: MaterialRow): MaterialLine => ({
   id: `line-${Math.random().toString(16).slice(2)}`,
   material,
   quantity: 1,
@@ -27,14 +29,53 @@ export const AddOperationModal = ({ isOpen, onClose }: AddOperationModalProps) =
   );
   const [operationType, setOperationType] = useState<'expense' | 'income'>('expense');
   const [notes, setNotes] = useState('');
-  const [selectedMaterial, setSelectedMaterial] = useState(materialsCatalog[0]);
+  const [materials, setMaterials] = useState<MaterialRow[]>([]);
+  const [materialsLoading, setMaterialsLoading] = useState(false);
+  const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<MaterialRow | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [lines, setLines] = useState<MaterialLine[]>([]);
+  const [activeTab, setActiveTab] = useState<'catalog' | 'custom'>('catalog');
+  const [customName, setCustomName] = useState('');
+  const [customUnit, setCustomUnit] = useState('шт');
+  const [customUnitType, setCustomUnitType] = useState('item');
+  const [customPrice, setCustomPrice] = useState(0);
+  const [customQuantity, setCustomQuantity] = useState(1);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        setMaterialsLoading(true);
+        setMaterialsError(null);
+        const response = await fetch(`${API_BASE_URL}/materials`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`Request failed (${response.status})`);
+        }
+        const data = (await response.json()) as MaterialRow[];
+        setMaterials(data);
+        setSelectedMaterial((prev) => prev ?? data[0] ?? null);
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          setMaterialsError('Не удалось загрузить материалы.');
+        }
+      } finally {
+        setMaterialsLoading(false);
+      }
+    };
+    load();
+    return () => controller.abort();
+  }, [isOpen]);
 
   const materialsTotal = useMemo(
     () =>
       lines.reduce(
-        (sum, line) => sum + line.quantity * line.material.priceEUR,
+        (sum, line) => sum + line.quantity * line.material.price,
         0
       ),
     [lines]
@@ -52,6 +93,31 @@ export const AddOperationModal = ({ isOpen, onClose }: AddOperationModalProps) =
       ...prev,
       { ...createLine(selectedMaterial), quantity: Math.max(0, selectedQuantity) },
     ]);
+  };
+
+  const addCustomLine = () => {
+    if (!customName.trim()) {
+      return;
+    }
+    const material: MaterialRow = {
+      id: `custom-${Math.random().toString(16).slice(2)}`,
+      name: customName.trim(),
+      price: customPrice,
+      unit: customUnit.trim() || 'шт',
+      unit_type: customUnitType.trim() || 'item',
+    };
+    setLines((prev) => [
+      ...prev,
+      {
+        id: `line-${Math.random().toString(16).slice(2)}`,
+        material,
+        quantity: Math.max(0, customQuantity),
+        isCustom: true,
+      },
+    ]);
+    setCustomName('');
+    setCustomPrice(0);
+    setCustomQuantity(1);
   };
 
   const updateLine = (id: string, quantity: number) => {
@@ -75,6 +141,12 @@ export const AddOperationModal = ({ isOpen, onClose }: AddOperationModalProps) =
     setNotes('');
     setSelectedQuantity(1);
     setLines([]);
+    setActiveTab('catalog');
+    setCustomName('');
+    setCustomUnit('шт');
+    setCustomUnitType('item');
+    setCustomPrice(0);
+    setCustomQuantity(1);
   };
 
   return (
@@ -138,45 +210,123 @@ export const AddOperationModal = ({ isOpen, onClose }: AddOperationModalProps) =
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_120px_120px] gap-3">
-              <select
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={selectedMaterial?.name ?? ''}
-                onChange={(event) => {
-                  const found = materialsCatalog.find(
-                    (item) => item.name === event.target.value
-                  );
-                  if (found) {
-                    setSelectedMaterial(found);
-                  }
-                }}
-              >
-                {materialsCatalog.map((item) => (
-                  <option key={item.name} value={item.name}>
-                    {item.name} · {formatEUR(item.priceEUR)}/{item.unit}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min={0}
-                step={0.1}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={selectedQuantity}
-                onChange={(event) => setSelectedQuantity(Number(event.target.value))}
-              />
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={addLine}
-                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                onClick={() => setActiveTab('catalog')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                  activeTab === 'catalog'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-500 hover:bg-slate-100'
+                }`}
               >
-                Добавить
+                Каталог
               </button>
-              <div className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500">
-                {selectedMaterial
-                  ? `${formatEUR(selectedMaterial.priceEUR)}/${selectedMaterial.unit}`
-                  : '—'}
-              </div>
+              <button
+                onClick={() => setActiveTab('custom')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                  activeTab === 'custom'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'text-slate-500 hover:bg-slate-100'
+                }`}
+              >
+                Своя позиция
+              </button>
             </div>
+
+            {activeTab === 'catalog' ? (
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_120px_120px] gap-3">
+                <select
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={selectedMaterial?.id ?? ''}
+                  onChange={(event) => {
+                    const found = materials.find((item) => item.id === event.target.value);
+                    if (found) {
+                      setSelectedMaterial(found);
+                    }
+                  }}
+                  disabled={materialsLoading || materials.length === 0}
+                >
+                  {materials.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} · {formatEUR(item.price)}/{item.unit}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={selectedQuantity}
+                  onChange={(event) => setSelectedQuantity(Number(event.target.value))}
+                />
+                <button
+                  onClick={addLine}
+                  className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  Добавить
+                </button>
+                <div className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500">
+                  {selectedMaterial
+                    ? `${formatEUR(selectedMaterial.price)}/${selectedMaterial.unit}`
+                    : '—'}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_120px_120px] gap-3">
+                <input
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="Название"
+                  value={customName}
+                  onChange={(event) => setCustomName(event.target.value)}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="Цена"
+                  value={customPrice}
+                  onChange={(event) => setCustomPrice(Number(event.target.value))}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="Кол-во"
+                  value={customQuantity}
+                  onChange={(event) => setCustomQuantity(Number(event.target.value))}
+                />
+                <button
+                  onClick={addCustomLine}
+                  className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  Добавить
+                </button>
+                <div className="grid grid-cols-2 gap-2 md:col-span-2">
+                  <input
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    placeholder="Ед."
+                    value={customUnit}
+                    onChange={(event) => setCustomUnit(event.target.value)}
+                  />
+                  <input
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    placeholder="Тип"
+                    value={customUnitType}
+                    onChange={(event) => setCustomUnitType(event.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {materialsLoading && (
+              <p className="text-xs text-slate-400">Загрузка материалов…</p>
+            )}
+            {materialsError && (
+              <p className="text-xs text-rose-500">{materialsError}</p>
+            )}
 
             <div className="space-y-2">
               {lines.map((line) => (
@@ -189,7 +339,7 @@ export const AddOperationModal = ({ isOpen, onClose }: AddOperationModalProps) =
                       {line.material.name}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {formatEUR(line.material.priceEUR)}/{line.material.unit}
+                      {formatEUR(line.material.price)}/{line.material.unit} · {line.material.unit_type}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -202,7 +352,7 @@ export const AddOperationModal = ({ isOpen, onClose }: AddOperationModalProps) =
                       onChange={(event) => updateLine(line.id, Number(event.target.value))}
                     />
                     <span className="text-sm text-slate-600">
-                      {formatEUR(line.quantity * line.material.priceEUR)}
+                      {formatEUR(line.quantity * line.material.price)}
                     </span>
                     <button
                       onClick={() => removeLine(line.id)}
