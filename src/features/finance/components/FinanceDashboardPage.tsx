@@ -6,6 +6,7 @@ import { FinanceSummaryCards } from './FinanceSummaryCards';
 import { FinanceTable } from './FinanceTable';
 import { AddOperationModal } from './AddOperationModal';
 import { MaterialsPanel } from './MaterialsPanel';
+import { MonthlyComparisonChart } from './MonthlyComparisonChart';
 import { financeData } from '../mock/financeMock';
 import { financeLedgerData } from '../data/ledgerData';
 import { mapLedgerToFinanceRows } from '../lib/ledgerAdapter';
@@ -48,6 +49,7 @@ export const FinanceDashboardPage = ({ view = 'finance' }: FinanceDashboardPageP
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [chartScope, setChartScope] = useState<'current' | 'all'>('all');
 
   useEffect(() => {
     if (financeLedgerData.length > 0) {
@@ -78,15 +80,18 @@ export const FinanceDashboardPage = ({ view = 'finance' }: FinanceDashboardPageP
     return () => controller.abort();
   }, []);
 
-  const monthRows = useMemo(() => {
+  const allRows = useMemo(() => {
     if (financeLedgerData.length > 0) {
-      return getLatestMonthRows(mapLedgerToFinanceRows(financeLedgerData));
+      return mapLedgerToFinanceRows(financeLedgerData);
     }
     if (apiRows.length > 0) {
-      return getLatestMonthRows(mapLedgerToFinanceRows(apiRows));
+      return mapLedgerToFinanceRows(apiRows);
     }
     return [];
   }, [apiRows]);
+
+  const monthRows = useMemo(() => getLatestMonthRows(allRows), [allRows]);
+  const chartRows = chartScope === 'current' ? monthRows : allRows;
 
   return (
     <div className="space-y-6">
@@ -138,6 +143,41 @@ export const FinanceDashboardPage = ({ view = 'finance' }: FinanceDashboardPageP
           <div className="grid gap-6 lg:grid-cols-2">
             <BalanceChart rows={monthRows} />
             <ExpenseBreakdownChart rows={monthRows} />
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
+                  Сравнение месяцев
+                </p>
+                <p className="text-lg font-semibold text-slate-800">Доходы vs расходы</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setChartScope('current')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                    chartScope === 'current'
+                      ? 'bg-indigo-600 text-white shadow'
+                      : 'text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  Текущий месяц
+                </button>
+                <button
+                  onClick={() => setChartScope('all')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                    chartScope === 'all'
+                      ? 'bg-indigo-600 text-white shadow'
+                      : 'text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  Все месяцы
+                </button>
+              </div>
+            </div>
+            <div className="mt-4">
+              <MonthlyComparisonChart rows={chartRows} />
+            </div>
           </div>
         </>
       )}
