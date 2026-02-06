@@ -66,10 +66,10 @@ export default function SolarSaaS() {
 
             <p className="px-4 text-xs font-bold text-slate-400 uppercase mb-2">Основное</p>
             <NavItem id="backend-dashboard" icon={TrendingUp} label="Статистика" />
-            <NavItem id="crm" icon={Users} label="CRM" />
-            <NavItem id="pv-intake" icon={FileText} label="PV-Anmeldung" />
+            {/* <NavItem id="crm" icon={Users} label="CRM" /> */}
+            {/* <NavItem id="pv-intake" icon={FileText} label="PV-Anmeldung" /> */}
             <NavItem id="finance" icon={Wallet} label="Finance" />
-            <NavItem id="materials" icon={Package} label="Материалы" />
+            {/* <NavItem id="materials" icon={Package} label="Материалы" /> */}
 
         </nav>
 
