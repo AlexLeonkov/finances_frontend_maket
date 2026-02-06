@@ -1,12 +1,12 @@
-import { useState } from 'react';
 import type { ElementType } from 'react';
+import { useState } from 'react';
 
-import { FileText, LayoutGrid, Package, TrendingUp, Users, Wallet, Zap } from 'lucide-react';
+import { LayoutGrid, TrendingUp, Wallet, Zap } from 'lucide-react';
 
-import { StatsPage } from '../features/dashboard/components/StatsPage';
 import { CrmPage } from '../features/crm/components/CrmPage';
-import { PvIntakePage } from '../features/pvIntake/components/PvIntakePage';
+import { StatsPage } from '../features/dashboard/components/StatsPage';
 import { FinanceDashboardPage } from '../features/finance/components/FinanceDashboardPage';
+import { PvIntakePage } from '../features/pvIntake/components/PvIntakePage';
 
 // --- COMPONENTS ---
 
